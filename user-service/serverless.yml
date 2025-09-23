@@ -1,0 +1,42 @@
+# "org" ensures this Service is used with the correct Serverless Framework Access Key.
+org: baonguyen1711
+# "app" enables Serverless Framework Dashboard features and sharing them with other Services.
+app: healthcare-system
+# "service" is the name of this project. This will also be added to your AWS resource names.
+service: user-service
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  # Uncomment to easily set up a custom domain. Read the docs for more details:
+  # https://www.serverless.com/framework/docs/providers/aws/guide/domains
+  # domain: api.example.com
+  environment:
+    USER_TABLE: UsersTable
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:Scan
+        - dynamodb:Query
+      Resource: "arn:aws:dynamodb:${self:provider.region}:290158030807:table/${self:provider.environment.USER_TABLE}"
+
+
+functions:
+  addUser:
+    handler: handlers/handler.addUser
+    events:
+      - httpApi:
+          path: /user
+          method: post
+
+  getUser:
+    handler: handlers/handler.getUser
+    events:
+      - httpApi:
+          path: /user/{userId}
+          method: get

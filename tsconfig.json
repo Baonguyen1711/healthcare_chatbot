@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",                         // Phiên bản JS output
+    "module": "commonjs",                       // Lambda runtime dùng CommonJS
+    "moduleResolution": "node",                 // Tìm module trong node_modules
+    "esModuleInterop": true,                    // Cho phép import default từ CommonJS
+    "forceConsistentCasingInFileNames": true,  // Ép case consistent
+    "strict": true,                             // Bật strict type checking
+    "skipLibCheck": true,                       // Bỏ qua type check của các lib bên ngoài
+    "outDir": "dist",                           // Thư mục build ra
+    "rootDir": ".",                           // Thư mục code TS
+    "resolveJsonModule": true                   // Hỗ trợ import file JSON
+  },
+  "include": ["**/*.ts"],                   // Include toàn bộ code TS
+  "exclude": ["node_modules", "dist"]           // Exclude node_modules và build
+}
