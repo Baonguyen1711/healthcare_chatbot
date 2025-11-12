@@ -1,5 +1,5 @@
 import { addUserService, getUserService } from "../services/userService"
-import {formatResponse} from "../../utils/response";
+import {formatResponse} from "../../shared/response";
 
 export const addUser = async (event: any) => {
   try {

@@ -11,7 +11,15 @@
   "license": "ISC",
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.894.0",
+    "@aws-sdk/client-scheduler": "^3.901.0",
     "@aws-sdk/lib-dynamodb": "^3.894.0",
-    "aws-sdk": "^2.1692.0"
+    "aws-sdk": "^2.1692.0",
+    "moment-timezone": "^0.6.0",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@types/web-push": "^3.6.4",
+    "serverless-dotenv-plugin": "^6.0.0",
+    "serverless-offline": "^14.4.0"
   }
 }

@@ -1,0 +1,62 @@
+# "org" ensures this Service is used with the correct Serverless Framework Access Key.
+org: baonguyen1711
+# "app" enables Serverless Framework Dashboard features and sharing them with other Services.
+app: healthcare-system
+# "service" is the name of this project. This will also be added to your AWS resource names.
+service: reminder-service
+
+plugins:
+  - serverless-dotenv-plugin
+  - serverless-offline
+  
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  stage: dev
+
+  # Uncomment to easily set up a custom domain. Read the docs for more details:
+  # https://www.serverless.com/framework/docs/providers/aws/guide/domains
+  # domain: api.example.com
+  environment:
+    SUBSCRIPTION_TABLE: SubscriptionsTable
+    VAPID_PUBLIC_KEY: ${env:VAPID_PUBLIC_KEY}
+    VAPID_PRIVATE_KEY: ${env:VAPID_PRIVATE_KEY}
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:Scan
+        - dynamodb:Query
+      Resource: "arn:aws:dynamodb:${self:provider.region}:290158030807:table/${self:provider.environment.SUBSCRIPTION_TABLE}"
+  httpApi:
+    cors:
+      allowedOrigins:
+        - http://localhost:8080
+      allowedHeaders:
+        - Content-Type
+        - Authorization
+      allowedMethods:
+        - OPTIONS
+        - GET
+        - POST
+        - PUT
+        - DELETE
+      allowCredentials: true
+
+functions:
+  sendNotification:
+    handler: handlers/handler.sendNotificationHandler
+    events:
+      - httpApi:
+          path: /notify
+          method: post
+  createReminder:
+    handler: handlers/handler.createReminderHandler
+    events:
+      - httpApi:
+          path: /reminders
+          method: post

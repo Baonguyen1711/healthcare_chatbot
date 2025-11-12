@@ -1,0 +1,1 @@
+export const CONTACT_EMAIL = "mailto:Baonguyen17112004@gmail.com"
