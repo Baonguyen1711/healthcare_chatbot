@@ -1,0 +1,63 @@
+service: billing-service
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  stage: dev
+
+  # Biến môi trường cho Lambda
+  environment:
+    BILLS_TABLE: HospitalBills
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:Query
+        - dynamodb:Scan
+      Resource:
+        - !GetAtt HospitalBillsTable.Arn
+
+functions:
+  # Lấy lần khám gần nhất của 1 user
+  getLatestBill:
+    handler: src/handlers/getLatestBill.handler
+    events:
+      - httpApi:
+          path: /billing/latest/{userId}
+          method: get
+
+  # Lấy 1 hóa đơn cụ thể theo userId + visitId
+  getBillByVisit:
+    handler: src/handlers/getBillByVisit.handler
+    events:
+      - httpApi:
+          path: /billing/{userId}/{visitId}
+          method: get
+
+plugins:
+  - serverless-offline
+
+resources:
+  Resources:
+    HospitalBillsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: HospitalBills
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: visitId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+          - AttributeName: visitId
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
