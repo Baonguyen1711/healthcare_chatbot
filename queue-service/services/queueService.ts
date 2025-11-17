@@ -1,5 +1,3 @@
-// queue-service/services/queueService.ts
-
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
     DynamoDBDocumentClient,
@@ -12,13 +10,13 @@ import {
     AdminAdvanceQueueInput,
     CheckinRequestOtpInput,
     QueueType,
-    ReissueTicketInput, // ❗ ReissueTicketInput giờ sẽ dùng phoneNumber, queueType?, visitDate?
+    ReissueTicketInput,
     TicketStatusQueryInput,
     TicketStatusResponse,
-    VerifyAndIssueTicketInput, // ❗ Bỏ DateOfBirth trong model
+    VerifyAndIssueTicketInput,
 } from "../models/queueModels";
 
-const IS_OFFLINE = process.env.IS_OFFLINE === "true"; // Serverless tự động thêm cờ này khi chạy local
+const IS_OFFLINE = process.env.IS_OFFLINE === "true";
 
 const clientConfig: any = {
     region: process.env.AWS_REGION || "ap-southeast-1",
@@ -31,7 +29,6 @@ if (IS_OFFLINE) {
 
     clientConfig.endpoint = "http://localhost:8000"; // Bắt buộc trỏ vào cổng 8000
     clientConfig.credentials = {
-        // Dùng đúng key "fake" như trong file .env cho đồng bộ
         accessKeyId: process.env.AWS_ACCESS_KEY_ID || "fake",
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "fake",
     };
@@ -81,9 +78,6 @@ function generateOtpCode(): string {
     return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// 1. Gửi OTP (demo: trả về luôn mã OTP)
-// LƯU Ý: mỗi phoneNumber chỉ giữ 1 record OTP (Put override theo PhoneNumber)
-// Key: { PhoneNumber }
 export async function requestOtpForCheckin(
     input: CheckinRequestOtpInput
 ): Promise<{ phoneNumber: string; otpCode: string; expiredAt: string }> {
@@ -91,16 +85,15 @@ export async function requestOtpForCheckin(
     const code = generateOtpCode();
     const now = new Date();
     const createdAt = now.toISOString();
-    const expiredAt = new Date(now.getTime() + 5 * 60 * 1000).toISOString(); // +5 phút
+    const expiredAt = new Date(now.getTime() + 5 * 60 * 1000).toISOString();
 
-    // TTL optional: epoch seconds
-    const ttl = Math.floor(now.getTime() / 1000) + 10 * 60; // 10 phút
+    const ttl = Math.floor(now.getTime() / 1000) + 10 * 60;
 
     await ddb.send(
         new PutCommand({
             TableName: OTP_TABLE,
             Item: {
-                PhoneNumber: phoneNumber, // PK
+                PhoneNumber: phoneNumber,
                 CreatedAt: createdAt,
                 OtpCode: code,
                 Purpose: "CHECKIN",
@@ -112,11 +105,9 @@ export async function requestOtpForCheckin(
         })
     );
 
-    // Demo: trả OTP về luôn cho FE để hiển thị
     return { phoneNumber, otpCode: code, expiredAt };
 }
 
-// helper: lấy OTP hiện tại của 1 phone (duy nhất 1 record / phone)
 async function getCurrentOtp(phoneNumber: string): Promise<any | null> {
     const result = await ddb.send(
         new GetCommand({
@@ -130,7 +121,6 @@ async function getCurrentOtp(phoneNumber: string): Promise<any | null> {
     return result.Item || null;
 }
 
-// 2. Verify OTP + tạo patient + cấp số thứ tự
 export async function verifyOtpAndIssueTicket(
     input: VerifyAndIssueTicketInput
 ): Promise<{
@@ -144,7 +134,6 @@ export async function verifyOtpAndIssueTicket(
     const visitDate = input.visitDate || today();
     const now = new Date();
 
-    // 2.1. Kiểm tra OTP (đúng OTP hiện tại của SĐT & còn hạn)
     const otp = await getCurrentOtp(phoneNumber);
     if (!otp || otp.Purpose !== "CHECKIN") {
         throw new Error("OTP_NOT_FOUND");
@@ -159,7 +148,6 @@ export async function verifyOtpAndIssueTicket(
     }
 
     if (otp.OtpCode !== otpCode) {
-        // tăng attempts
         await ddb.send(
             new UpdateCommand({
                 TableName: OTP_TABLE,
@@ -177,7 +165,6 @@ export async function verifyOtpAndIssueTicket(
         throw new Error("OTP_INVALID");
     }
 
-    // mark verified
     await ddb.send(
         new UpdateCommand({
             TableName: OTP_TABLE,
@@ -190,7 +177,6 @@ export async function verifyOtpAndIssueTicket(
         })
     );
 
-    // 2.2. Upsert Patients (PK = PhoneNumber) – bỏ DateOfBirth
     await ddb.send(
         new PutCommand({
             TableName: PATIENTS_TABLE,
@@ -203,7 +189,6 @@ export async function verifyOtpAndIssueTicket(
         })
     );
 
-    // 2.3. Lấy hoặc tạo Queue
     const queueId = buildQueueId(visitDate, queueType);
 
     const queueResult = await ddb.send(
@@ -216,7 +201,6 @@ export async function verifyOtpAndIssueTicket(
     let lastIssuedNumber = 0;
 
     if (!queueResult.Item) {
-        // tạo queue mới
         await ddb.send(
             new PutCommand({
                 TableName: QUEUES_TABLE,
@@ -239,7 +223,6 @@ export async function verifyOtpAndIssueTicket(
     const ticketNumber = lastIssuedNumber + 1;
     const ticketCode = formatTicketCode(queueType, ticketNumber);
 
-    // 2.4. Tạo ticket – lưu thêm VisitDate, QueueType để sau này query dễ
     await ddb.send(
         new PutCommand({
             TableName: TICKETS_TABLE,
@@ -256,7 +239,6 @@ export async function verifyOtpAndIssueTicket(
         })
     );
 
-    // 2.5. Update LastIssuedNumber trong queue
     await ddb.send(
         new UpdateCommand({
             TableName: QUEUES_TABLE,
@@ -313,19 +295,16 @@ export async function getTicketStatus(
     }
     const ticket = ticketResult.Item;
 
-    // Tính toán trạng thái "logic" dựa trên currentNumber
-    // Nếu DB chưa kịp cập nhật, mình vẫn trả về đúng trạng thái cho FE.
     let logicalStatus: string = ticket.Status;
 
     if (ticket.Status === "WAITING") {
         if (currentNumber === ticketNumber) {
             logicalStatus = "CALLING";
         } else if (currentNumber > ticketNumber) {
-            logicalStatus = "DONE"; // đã qua lượt (vượt qua số của bạn)
+            logicalStatus = "DONE";
         }
     }
 
-    // Nếu logicalStatus khác trong DB, cập nhật lại để giữ nhất quán
     if (logicalStatus !== ticket.Status) {
         await ddb.send(
             new UpdateCommand({
@@ -371,10 +350,6 @@ export async function getTicketStatus(
     };
 }
 
-// 4. Xin cấp số lại (dựa trên SĐT để tránh fake ticketCode)
-// YÊU CẦU: tạo GSI "PatientPhoneIndex" trên TICKETS_TABLE:
-//   PK: PatientPhone, SK: IssuedAt (hoặc TicketNumber)
-//   rồi query lấy ticket WAITING mới nhất của hôm nay.
 export async function reissueTicket(input: ReissueTicketInput): Promise<{
     oldTicketCode: string;
     newTicketCode: string;
@@ -385,10 +360,9 @@ export async function reissueTicket(input: ReissueTicketInput): Promise<{
     const visitDate = input.visitDate || today();
     const queueType = input.queueType as QueueType | undefined;
 
-    // 4.1. Tìm ticket WAITING mới nhất của bệnh nhân (hôm nay, đúng queueType nếu có)
     const queryParams: any = {
         TableName: TICKETS_TABLE,
-        IndexName: "PatientPhoneIndex", // GSI cần tạo sẵn
+        IndexName: "PatientPhoneIndex",
         KeyConditionExpression: "PatientPhone = :p",
         ExpressionAttributeValues: {
             ":p": phoneNumber,
@@ -401,7 +375,7 @@ export async function reissueTicket(input: ReissueTicketInput): Promise<{
         ExpressionAttributeNames: {
             "#status": "Status",
         },
-        ScanIndexForward: false, // mới nhất trước
+        ScanIndexForward: false,
         Limit: 1,
     };
 
@@ -492,10 +466,6 @@ export async function reissueTicket(input: ReissueTicketInput): Promise<{
     };
 }
 
-// 5. Admin: tăng CurrentNumber (mô phỏng quầy bấm gọi số)
-// Đồng thời cập nhật trạng thái ticket:
-// - Số cũ -> DONE
-// - Số mới -> CALLING
 export async function adminAdvanceQueue(
     input: AdminAdvanceQueueInput
 ): Promise<{ queueId: string; currentNumber: number }> {
@@ -505,7 +475,6 @@ export async function adminAdvanceQueue(
 
     const queueId = buildQueueId(visitDate, queueType);
 
-    // Tăng CurrentNumber, trả về giá trị cũ để tính toán
     const updateRes = await ddb.send(
         new UpdateCommand({
             TableName: QUEUES_TABLE,
@@ -524,7 +493,6 @@ export async function adminAdvanceQueue(
     const lastIssued: number = updateRes.Attributes?.LastIssuedNumber || 0;
     const newCurrent = oldCurrent + step;
 
-    // Đánh dấu ticket cũ là DONE (nếu tồn tại và đã từng CALLING/WAITING)
     if (oldCurrent > 0 && oldCurrent <= lastIssued) {
         await ddb.send(
             new UpdateCommand({
@@ -537,7 +505,6 @@ export async function adminAdvanceQueue(
         );
     }
 
-    // Đánh dấu ticket mới là CALLING (nếu <= lastIssued)
     if (newCurrent > 0 && newCurrent <= lastIssued) {
         await ddb.send(
             new UpdateCommand({

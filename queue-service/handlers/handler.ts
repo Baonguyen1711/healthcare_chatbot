@@ -1,5 +1,3 @@
-// queue-service/handlers/handler.ts
-
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import {
     adminAdvanceQueue,
@@ -91,7 +89,6 @@ export const reissue = async (
 ): Promise<APIGatewayProxyResult> => {
     try {
         const body = JSON.parse(event.body || "{}");
-        // body cần: { phoneNumber, visitDate?, queueType? }
         const result = await reissueTicket(body);
         return jsonResponse(200, {
             success: true,
@@ -111,7 +108,6 @@ export const advanceQueue = async (
 ): Promise<APIGatewayProxyResult> => {
     try {
         const body = JSON.parse(event.body || "{}");
-        // body: { queueType, visitDate?, step? }
         const result = await adminAdvanceQueue(body);
         return jsonResponse(200, {
             success: true,
