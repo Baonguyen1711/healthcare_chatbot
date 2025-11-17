@@ -1,0 +1,150 @@
+#org: uitdev
+#app: healthcare-system
+service: medical-info-service
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ap-southeast-1
+  stage: ${opt:stage, 'dev'}
+  environment:
+    DYNAMODB_TABLE: ${self:service}-${self:provider.stage}
+    CACHE_TABLE: ${self:service}-cache-${self:provider.stage}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource:
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}"
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.CACHE_TABLE}"
+  httpApi:
+    cors: true
+
+build:
+  esbuild: false
+
+functions:
+  getMedicalInfo:
+    handler: handlers/getMedicalInfo.handler
+    events:
+      - httpApi:
+          path: /medical-info/{id}
+          method: get
+  searchMedicalInfo:
+    handler: handlers/searchMedicalInfo.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /medical-info/search
+          method: get
+  getInfoByCategory:
+    handler: handlers/getInfoByCategory.handler
+    events:
+      - httpApi:
+          path: /medical-info/category/{category}
+          method: get
+  syncExternalSources:
+    handler: handlers/syncExternalSources.handler
+    events:
+      - schedule:
+          rate: cron(0 2 * * ? *)
+          description: "Sync medical info daily at 2 AM"
+    timeout: 300
+
+resources:
+  # Phần resources không thay đổi
+  Resources:
+    MedicalInfoTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: category
+            AttributeType: S
+          - AttributeName: source
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: CategoryIndex
+            KeySchema:
+              - AttributeName: category
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+          - IndexName: SourceIndex
+            KeySchema:
+              - AttributeName: source
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+    CacheTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.CACHE_TABLE}
+        AttributeDefinitions:
+          - AttributeName: key
+            AttributeType: S
+        KeySchema:
+          - AttributeName: key
+            KeyType: HASH
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+
+### ----- THAY ĐỔI BẮT ĐẦU TỪ ĐÂY ----- ###
+
+plugins:
+  - serverless-esbuild # <-- THÊM CÁI NÀY
+  - serverless-dynamodb-local
+  - serverless-offline
+
+# THÊM TOÀN BỘ PHẦN NÀY VÀO CUỐI FILE
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    exclude: ["aws-sdk"]
+    target: "node18"
+    define: { "require.resolve": undefined }
+    platform: "node"
+    concurrency: 10
+
+  # THÊM KHỐI NÀY (ngang hàng với esbuild)
+  dynamodb:
+    stages:
+      - dev # Chỉ chạy ở stage 'dev' (khi dùng serverless offline)
+    start:
+      port: 8000 # Chạy DynamoDB giả ở cổng 8000
+      inMemory: true # Chạy trong RAM (mất dữ liệu khi tắt, tốt cho test)
+      heapInitial: 200m
+      heapMax: 1g
+      migrate: true # TỰ ĐỘNG TẠO BẢNG DỰA TRÊN KHỐI `resources:` CỦA BẠN
+      seed: true # (Tùy chọn) Tự động nạp dữ liệu test
+    # (Tùy chọn) Cấu hình nạp dữ liệu test
+    # seed:
+    #   default:
+    #     sources:
+    #       - table: ${self:provider.environment.DYNAMODB_TABLE}
+    #         sources: [./dynamodb-seed.json]
