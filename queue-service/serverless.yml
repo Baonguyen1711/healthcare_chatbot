@@ -1,0 +1,159 @@
+service: queue-service
+frameworkVersion: "3"
+useDotenv: true
+
+plugins:
+    - serverless-esbuild
+    - serverless-dynamodb
+    - serverless-offline
+
+provider:
+    name: aws
+    runtime: nodejs20.x
+    region: ap-southeast-1
+    stage: dev
+
+    environment:
+        AWS_REGION: ap-southeast-1
+        QUEUES_TABLE: Queues
+        TICKETS_TABLE: Tickets
+        PATIENTS_TABLE: Patients
+        OTP_TABLE: OtpRequests
+
+    iamRoleStatements:
+        - Effect: Allow
+          Action:
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:Query
+          Resource:
+              - arn:aws:dynamodb:ap-southeast-1:*:table/Queues
+              - arn:aws:dynamodb:ap-southeast-1:*:table/Tickets
+              - arn:aws:dynamodb:ap-southeast-1:*:table/Patients
+              - arn:aws:dynamodb:ap-southeast-1:*:table/OtpRequests
+
+# Thêm cấu hình cho esbuild
+custom:
+    esbuild:
+        bundle: true
+        minify: false
+        sourcemap: true
+        exclude: ["aws-sdk"]
+        target: "node20"
+        define: { "require.resolve": "undefined" }
+        platform: "node"
+        # Quan trọng: Báo esbuild xuất ra code ESM
+        format: "esm"
+        concurrency: 10
+        banner:
+            js: |
+                import { createRequire } from 'module';
+                const require = createRequire(import.meta.url);
+
+    dynamodb:
+        stages:
+            - dev
+        start:
+            port: 8000
+            inMemory: true
+            migrate: true # Tự động tạo bảng
+
+functions:
+    requestOtp:
+        handler: handlers/handler.requestOtp
+        events:
+            - http:
+                  path: queue/checkin/request-otp
+                  method: post
+                  cors: true
+
+    verifyAndIssue:
+        handler: handlers/handler.verifyAndIssue
+        events:
+            - http:
+                  path: queue/checkin/verify
+                  method: post
+                  cors: true
+
+    getStatus:
+        handler: handlers/handler.getStatus
+        events:
+            - http:
+                  path: queue/ticket/status
+                  method: get
+                  cors: true
+
+    reissue:
+        handler: handlers/handler.reissue
+        events:
+            - http:
+                  path: queue/ticket/reissue
+                  method: post
+                  cors: true
+
+    advanceQueue:
+        handler: handlers/handler.advanceQueue
+        events:
+            - http:
+                  path: queue/admin/advance
+                  method: post
+                  cors: true
+
+resources:
+    Resources:
+        QueuesTable:
+            Type: AWS::DynamoDB::Table
+            Properties:
+                TableName: ${self:provider.environment.QUEUES_TABLE}
+                AttributeDefinitions:
+                    - AttributeName: QueueId
+                      AttributeType: S
+                KeySchema:
+                    - AttributeName: QueueId
+                      KeyType: HASH
+                BillingMode: PAY_PER_REQUEST
+
+        TicketsTable:
+            Type: AWS::DynamoDB::Table
+            Properties:
+                TableName: ${self:provider.environment.TICKETS_TABLE}
+                AttributeDefinitions:
+                    - AttributeName: QueueId
+                      AttributeType: S
+                    - AttributeName: TicketNumber
+                      AttributeType: N
+                KeySchema:
+                    - AttributeName: QueueId
+                      KeyType: HASH
+                    - AttributeName: TicketNumber
+                      KeyType: RANGE
+                BillingMode: PAY_PER_REQUEST
+
+        PatientsTable:
+            Type: AWS::DynamoDB::Table
+            Properties:
+                TableName: ${self:provider.environment.PATIENTS_TABLE}
+                AttributeDefinitions:
+                    - AttributeName: PhoneNumber
+                      AttributeType: S
+                KeySchema:
+                    - AttributeName: PhoneNumber
+                      KeyType: HASH
+                BillingMode: PAY_PER_REQUEST
+
+        OtpRequestsTable:
+            Type: AWS::DynamoDB::Table
+            Properties:
+                TableName: ${self:provider.environment.OTP_TABLE}
+                AttributeDefinitions:
+                    - AttributeName: PhoneNumber
+                      AttributeType: S
+                    - AttributeName: CreatedAt
+                      AttributeType: S
+                KeySchema:
+                    - AttributeName: PhoneNumber
+                      KeyType: HASH
+                    - AttributeName: CreatedAt
+                      KeyType: RANGE
+                BillingMode: PAY_PER_REQUEST
