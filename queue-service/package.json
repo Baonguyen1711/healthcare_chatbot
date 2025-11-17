@@ -1,0 +1,16 @@
+{
+    "name": "queue-service",
+    "version": "1.0.0",
+    "devDependencies": {
+        "@types/aws-lambda": "^8.10.158",
+        "@types/node": "^20.10.0",
+        "serverless": "^3.40.0",
+        "serverless-dynamodb": "^0.2.56",
+        "serverless-esbuild": "^1.56.0",
+        "serverless-offline": "^13.9.0"
+    },
+    "dependencies": {
+        "@aws-sdk/client-dynamodb": "^3.932.0",
+        "@aws-sdk/lib-dynamodb": "^3.932.0"
+    }
+}
