@@ -1,0 +1,21 @@
+{
+  "name": "billing-service",
+  "version": "1.0.0",
+  "description": "Microservice vien phi cho chatbot y te (demo)",
+  "main": "index.js",
+  "scripts": {
+    "dev": "serverless offline",
+    "offline": "serverless offline",
+    "deploy": "serverless deploy",
+    "seed": "node src/seed.js",
+    "test": "echo \"No test specified\" && exit 0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.894.0",
+    "@aws-sdk/lib-dynamodb": "^3.894.0"
+  },
+  "devDependencies": {
+    "serverless": "^3.40.0",
+    "serverless-offline": "^13.0.0"
+  }
+}
