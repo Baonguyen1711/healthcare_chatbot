@@ -149,26 +149,26 @@ var require_combined_stream = __commonJS({
       }
       return combinedStream;
     };
-    CombinedStream.isStreamLike = function(stream4) {
-      return typeof stream4 !== "function" && typeof stream4 !== "string" && typeof stream4 !== "boolean" && typeof stream4 !== "number" && !Buffer.isBuffer(stream4);
+    CombinedStream.isStreamLike = function(stream5) {
+      return typeof stream5 !== "function" && typeof stream5 !== "string" && typeof stream5 !== "boolean" && typeof stream5 !== "number" && !Buffer.isBuffer(stream5);
     };
-    CombinedStream.prototype.append = function(stream4) {
-      var isStreamLike = CombinedStream.isStreamLike(stream4);
+    CombinedStream.prototype.append = function(stream5) {
+      var isStreamLike = CombinedStream.isStreamLike(stream5);
       if (isStreamLike) {
-        if (!(stream4 instanceof DelayedStream)) {
-          var newStream = DelayedStream.create(stream4, {
+        if (!(stream5 instanceof DelayedStream)) {
+          var newStream = DelayedStream.create(stream5, {
             maxDataSize: Infinity,
             pauseStream: this.pauseStreams
           });
-          stream4.on("data", this._checkDataSize.bind(this));
-          stream4 = newStream;
+          stream5.on("data", this._checkDataSize.bind(this));
+          stream5 = newStream;
         }
-        this._handleErrors(stream4);
+        this._handleErrors(stream5);
         if (this.pauseStreams) {
-          stream4.pause();
+          stream5.pause();
         }
       }
-      this._streams.push(stream4);
+      this._streams.push(stream5);
       return this;
     };
     CombinedStream.prototype.pipe = function(dest, options) {
@@ -193,40 +193,40 @@ var require_combined_stream = __commonJS({
       }
     };
     CombinedStream.prototype._realGetNext = function() {
-      var stream4 = this._streams.shift();
-      if (typeof stream4 == "undefined") {
+      var stream5 = this._streams.shift();
+      if (typeof stream5 == "undefined") {
         this.end();
         return;
       }
-      if (typeof stream4 !== "function") {
-        this._pipeNext(stream4);
+      if (typeof stream5 !== "function") {
+        this._pipeNext(stream5);
         return;
       }
-      var getStream = stream4;
-      getStream(function(stream5) {
-        var isStreamLike = CombinedStream.isStreamLike(stream5);
+      var getStream = stream5;
+      getStream(function(stream6) {
+        var isStreamLike = CombinedStream.isStreamLike(stream6);
         if (isStreamLike) {
-          stream5.on("data", this._checkDataSize.bind(this));
-          this._handleErrors(stream5);
+          stream6.on("data", this._checkDataSize.bind(this));
+          this._handleErrors(stream6);
         }
-        this._pipeNext(stream5);
+        this._pipeNext(stream6);
       }.bind(this));
     };
-    CombinedStream.prototype._pipeNext = function(stream4) {
-      this._currentStream = stream4;
-      var isStreamLike = CombinedStream.isStreamLike(stream4);
+    CombinedStream.prototype._pipeNext = function(stream5) {
+      this._currentStream = stream5;
+      var isStreamLike = CombinedStream.isStreamLike(stream5);
       if (isStreamLike) {
-        stream4.on("end", this._getNext.bind(this));
-        stream4.pipe(this, { end: false });
+        stream5.on("end", this._getNext.bind(this));
+        stream5.pipe(this, { end: false });
         return;
       }
-      var value = stream4;
+      var value = stream5;
       this.write(value);
       this._getNext();
     };
-    CombinedStream.prototype._handleErrors = function(stream4) {
+    CombinedStream.prototype._handleErrors = function(stream5) {
       var self2 = this;
-      stream4.on("error", function(err) {
+      stream5.on("error", function(err) {
         self2._emitError(err);
       });
     };
@@ -273,11 +273,11 @@ var require_combined_stream = __commonJS({
     CombinedStream.prototype._updateDataSize = function() {
       this.dataSize = 0;
       var self2 = this;
-      this._streams.forEach(function(stream4) {
-        if (!stream4.dataSize) {
+      this._streams.forEach(function(stream5) {
+        if (!stream5.dataSize) {
           return;
         }
-        self2.dataSize += stream4.dataSize;
+        self2.dataSize += stream5.dataSize;
       });
       if (this._currentStream && this._currentStream.dataSize) {
         this.dataSize += this._currentStream.dataSize;
@@ -10294,7 +10294,7 @@ var require_form_data = __commonJS({
     FormData3.prototype.toString = function() {
       return "[object FormData]";
     };
-    setToStringTag(FormData3, "FormData");
+    setToStringTag(FormData3.prototype, "FormData");
     module2.exports = FormData3;
   }
 });
@@ -10879,7 +10879,7 @@ var require_supports_color = __commonJS({
         has16m: level >= 3
       };
     }
-    function supportsColor(stream4) {
+    function supportsColor(stream5) {
       if (forceColor === 0) {
         return 0;
       }
@@ -10889,7 +10889,7 @@ var require_supports_color = __commonJS({
       if (hasFlag("color=256")) {
         return 2;
       }
-      if (stream4 && !stream4.isTTY && forceColor === void 0) {
+      if (stream5 && !stream5.isTTY && forceColor === void 0) {
         return 0;
       }
       const min = forceColor || 0;
@@ -10935,8 +10935,8 @@ var require_supports_color = __commonJS({
       }
       return min;
     }
-    function getSupportLevel(stream4) {
-      const level = supportsColor(stream4);
+    function getSupportLevel(stream5) {
+      const level = supportsColor(stream5);
       return translateLevel(level);
     }
     module2.exports = {
@@ -17134,7 +17134,7 @@ var require_util = __commonJS({
     var assert = require("node:assert");
     var { kDestroyed, kBodyUsed, kListeners, kBody } = require_symbols();
     var { IncomingMessage } = require("node:http");
-    var stream4 = require("node:stream");
+    var stream5 = require("node:stream");
     var net = require("node:net");
     var { stringify: stringify2 } = require("node:querystring");
     var { EventEmitter: EE } = require("node:events");
@@ -17310,24 +17310,24 @@ var require_util = __commonJS({
       return null;
     }
     function isDestroyed(body) {
-      return body && !!(body.destroyed || body[kDestroyed] || stream4.isDestroyed?.(body));
+      return body && !!(body.destroyed || body[kDestroyed] || stream5.isDestroyed?.(body));
     }
-    function destroy(stream5, err) {
-      if (stream5 == null || !isStream2(stream5) || isDestroyed(stream5)) {
+    function destroy(stream6, err) {
+      if (stream6 == null || !isStream2(stream6) || isDestroyed(stream6)) {
         return;
       }
-      if (typeof stream5.destroy === "function") {
-        if (Object.getPrototypeOf(stream5).constructor === IncomingMessage) {
-          stream5.socket = null;
+      if (typeof stream6.destroy === "function") {
+        if (Object.getPrototypeOf(stream6).constructor === IncomingMessage) {
+          stream6.socket = null;
         }
-        stream5.destroy(err);
+        stream6.destroy(err);
       } else if (err) {
         queueMicrotask(() => {
-          stream5.emit("error", err);
+          stream6.emit("error", err);
         });
       }
-      if (stream5.destroyed !== true) {
-        stream5[kDestroyed] = true;
+      if (stream6.destroyed !== true) {
+        stream6[kDestroyed] = true;
       }
     }
     var KEEPALIVE_TIMEOUT_EXPR = /timeout=(\d+)/;
@@ -17435,7 +17435,7 @@ var require_util = __commonJS({
       }
     }
     function isDisturbed(body) {
-      return !!(body && (stream4.isDisturbed(body) || body[kBodyUsed]));
+      return !!(body && (stream5.isDisturbed(body) || body[kBodyUsed]));
     }
     function getSocketInfo(socket) {
       return {
@@ -18361,9 +18361,9 @@ var require_dispatcher = __commonJS({
         throw new Error("not implemented");
       }
       compose(...args) {
-        const interceptors2 = Array.isArray(args[0]) ? args[0] : args;
+        const interceptors = Array.isArray(args[0]) ? args[0] : args;
         let dispatch = this.dispatch.bind(this);
-        for (const interceptor of interceptors2) {
+        for (const interceptor of interceptors) {
           if (interceptor == null) {
             continue;
           }
@@ -21834,19 +21834,19 @@ var require_body = __commonJS({
     function noop2() {
     }
     var streamRegistry = new FinalizationRegistry((weakRef) => {
-      const stream4 = weakRef.deref();
-      if (stream4 && !stream4.locked && !isDisturbed(stream4) && !isErrored(stream4)) {
-        stream4.cancel("Response object has been garbage collected").catch(noop2);
+      const stream5 = weakRef.deref();
+      if (stream5 && !stream5.locked && !isDisturbed(stream5) && !isErrored(stream5)) {
+        stream5.cancel("Response object has been garbage collected").catch(noop2);
       }
     });
     function extractBody(object, keepalive = false) {
-      let stream4 = null;
+      let stream5 = null;
       if (webidl.is.ReadableStream(object)) {
-        stream4 = object;
+        stream5 = object;
       } else if (webidl.is.Blob(object)) {
-        stream4 = object.stream();
+        stream5 = object.stream();
       } else {
-        stream4 = new ReadableStream({
+        stream5 = new ReadableStream({
           pull(controller) {
             const buffer = typeof source === "string" ? textEncoder2.encode(source) : source;
             if (buffer.byteLength) {
@@ -21859,7 +21859,7 @@ var require_body = __commonJS({
           type: "bytes"
         });
       }
-      assert(webidl.is.ReadableStream(stream4));
+      assert(webidl.is.ReadableStream(stream5));
       let action = null;
       let source = null;
       let length = null;
@@ -21936,14 +21936,14 @@ Content-Type: ${value.type || "application/octet-stream"}\r
             "Response body object should not be disturbed or locked"
           );
         }
-        stream4 = webidl.is.ReadableStream(object) ? object : ReadableStreamFrom(object);
+        stream5 = webidl.is.ReadableStream(object) ? object : ReadableStreamFrom(object);
       }
       if (typeof source === "string" || util3.isBuffer(source)) {
         length = Buffer.byteLength(source);
       }
       if (action != null) {
         let iterator2;
-        stream4 = new ReadableStream({
+        stream5 = new ReadableStream({
           async start() {
             iterator2 = action(object)[Symbol.asyncIterator]();
           },
@@ -21955,7 +21955,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
                 controller.byobRequest?.respond(0);
               });
             } else {
-              if (!isErrored(stream4)) {
+              if (!isErrored(stream5)) {
                 const buffer = new Uint8Array(value);
                 if (buffer.byteLength) {
                   controller.enqueue(buffer);
@@ -21970,7 +21970,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
           type: "bytes"
         });
       }
-      const body = { stream: stream4, source, length };
+      const body = { stream: stream5, source, length };
       return [body, type];
     }
     function safelyExtractBody(object, keepalive = false) {
@@ -23507,7 +23507,7 @@ var require_client_h2 = __commonJS({
           headers[key] = val2;
         }
       }
-      let stream4 = null;
+      let stream5 = null;
       const { hostname, port } = client[kUrl];
       headers[HTTP2_HEADER_AUTHORITY] = host || `${hostname}${port ? `:${port}` : ""}`;
       headers[HTTP2_HEADER_METHOD] = method;
@@ -23517,9 +23517,9 @@ var require_client_h2 = __commonJS({
         }
         err = err || new RequestAbortedError();
         util3.errorRequest(client, request, err);
-        if (stream4 != null) {
-          stream4.removeAllListeners("data");
-          stream4.close();
+        if (stream5 != null) {
+          stream5.removeAllListeners("data");
+          stream5.close();
           client[kOnError](err);
           client[kResume]();
         }
@@ -23535,23 +23535,23 @@ var require_client_h2 = __commonJS({
       }
       if (method === "CONNECT") {
         session.ref();
-        stream4 = session.request(headers, { endStream: false, signal });
-        if (!stream4.pending) {
-          request.onUpgrade(null, null, stream4);
+        stream5 = session.request(headers, { endStream: false, signal });
+        if (!stream5.pending) {
+          request.onUpgrade(null, null, stream5);
           ++session[kOpenStreams];
           client[kQueue][client[kRunningIdx]++] = null;
         } else {
-          stream4.once("ready", () => {
-            request.onUpgrade(null, null, stream4);
+          stream5.once("ready", () => {
+            request.onUpgrade(null, null, stream5);
             ++session[kOpenStreams];
             client[kQueue][client[kRunningIdx]++] = null;
           });
         }
-        stream4.once("close", () => {
+        stream5.once("close", () => {
           session[kOpenStreams] -= 1;
           if (session[kOpenStreams] === 0) session.unref();
         });
-        stream4.setTimeout(requestTimeout);
+        stream5.setTimeout(requestTimeout);
         return true;
       }
       headers[HTTP2_HEADER_PATH] = path;
@@ -23597,36 +23597,36 @@ var require_client_h2 = __commonJS({
       const shouldEndStream = method === "GET" || method === "HEAD" || body === null;
       if (expectContinue) {
         headers[HTTP2_HEADER_EXPECT] = "100-continue";
-        stream4 = session.request(headers, { endStream: shouldEndStream, signal });
-        stream4.once("continue", writeBodyH2);
+        stream5 = session.request(headers, { endStream: shouldEndStream, signal });
+        stream5.once("continue", writeBodyH2);
       } else {
-        stream4 = session.request(headers, {
+        stream5 = session.request(headers, {
           endStream: shouldEndStream,
           signal
         });
         writeBodyH2();
       }
       ++session[kOpenStreams];
-      stream4.setTimeout(requestTimeout);
-      stream4.once("response", (headers2) => {
+      stream5.setTimeout(requestTimeout);
+      stream5.once("response", (headers2) => {
         const { [HTTP2_HEADER_STATUS]: statusCode, ...realHeaders } = headers2;
         request.onResponseStarted();
         if (request.aborted) {
-          stream4.removeAllListeners("data");
+          stream5.removeAllListeners("data");
           return;
         }
-        if (request.onHeaders(Number(statusCode), parseH2Headers(realHeaders), stream4.resume.bind(stream4), "") === false) {
-          stream4.pause();
+        if (request.onHeaders(Number(statusCode), parseH2Headers(realHeaders), stream5.resume.bind(stream5), "") === false) {
+          stream5.pause();
         }
       });
-      stream4.on("data", (chunk) => {
+      stream5.on("data", (chunk) => {
         if (request.onData(chunk) === false) {
-          stream4.pause();
+          stream5.pause();
         }
       });
-      stream4.once("end", (err) => {
-        stream4.removeAllListeners("data");
-        if (stream4.state?.state == null || stream4.state.state < 6) {
+      stream5.once("end", (err) => {
+        stream5.removeAllListeners("data");
+        if (stream5.state?.state == null || stream5.state.state < 6) {
           if (!request.aborted && !request.completed) {
             request.onComplete({});
           }
@@ -23643,34 +23643,34 @@ var require_client_h2 = __commonJS({
           client[kResume]();
         }
       });
-      stream4.once("close", () => {
-        stream4.removeAllListeners("data");
+      stream5.once("close", () => {
+        stream5.removeAllListeners("data");
         session[kOpenStreams] -= 1;
         if (session[kOpenStreams] === 0) {
           session.unref();
         }
       });
-      stream4.once("error", function(err) {
-        stream4.removeAllListeners("data");
+      stream5.once("error", function(err) {
+        stream5.removeAllListeners("data");
         abort(err);
       });
-      stream4.once("frameError", (type, code) => {
-        stream4.removeAllListeners("data");
+      stream5.once("frameError", (type, code) => {
+        stream5.removeAllListeners("data");
         abort(new InformationalError(`HTTP/2: "frameError" received - type ${type}, code ${code}`));
       });
-      stream4.on("aborted", () => {
-        stream4.removeAllListeners("data");
+      stream5.on("aborted", () => {
+        stream5.removeAllListeners("data");
       });
-      stream4.on("timeout", () => {
+      stream5.on("timeout", () => {
         const err = new InformationalError(`HTTP/2: "stream timeout after ${requestTimeout}"`);
-        stream4.removeAllListeners("data");
+        stream5.removeAllListeners("data");
         session[kOpenStreams] -= 1;
         if (session[kOpenStreams] === 0) {
           session.unref();
         }
         abort(err);
       });
-      stream4.once("trailers", (trailers) => {
+      stream5.once("trailers", (trailers) => {
         if (request.aborted || request.completed) {
           return;
         }
@@ -23681,7 +23681,7 @@ var require_client_h2 = __commonJS({
         if (!body || contentLength === 0) {
           writeBuffer(
             abort,
-            stream4,
+            stream5,
             null,
             client,
             request,
@@ -23692,7 +23692,7 @@ var require_client_h2 = __commonJS({
         } else if (util3.isBuffer(body)) {
           writeBuffer(
             abort,
-            stream4,
+            stream5,
             body,
             client,
             request,
@@ -23704,7 +23704,7 @@ var require_client_h2 = __commonJS({
           if (typeof body.stream === "function") {
             writeIterable(
               abort,
-              stream4,
+              stream5,
               body.stream(),
               client,
               request,
@@ -23715,7 +23715,7 @@ var require_client_h2 = __commonJS({
           } else {
             writeBlob(
               abort,
-              stream4,
+              stream5,
               body,
               client,
               request,
@@ -23729,7 +23729,7 @@ var require_client_h2 = __commonJS({
             abort,
             client[kSocket],
             expectsPayload,
-            stream4,
+            stream5,
             body,
             client,
             request,
@@ -23738,7 +23738,7 @@ var require_client_h2 = __commonJS({
         } else if (util3.isIterable(body)) {
           writeIterable(
             abort,
-            stream4,
+            stream5,
             body,
             client,
             request,
@@ -23930,7 +23930,7 @@ var require_client = __commonJS({
     function getPipelining(client) {
       return client[kPipelining] ?? client[kHTTPContext]?.defaultPipelining ?? 1;
     }
-    var Client2 = class extends DispatcherBase {
+    var Client = class extends DispatcherBase {
       /**
        *
        * @param {string|URL} url
@@ -24346,7 +24346,7 @@ var require_client = __commonJS({
         }
       }
     }
-    module2.exports = Client2;
+    module2.exports = Client;
   }
 });
 
@@ -24603,7 +24603,7 @@ var require_pool = __commonJS({
       kGetDispatcher,
       kRemoveClient
     } = require_pool_base();
-    var Client2 = require_client();
+    var Client = require_client();
     var {
       InvalidArgumentError
     } = require_errors();
@@ -24614,7 +24614,7 @@ var require_pool = __commonJS({
     var kConnections = Symbol("connections");
     var kFactory = Symbol("factory");
     function defaultFactory(origin2, opts) {
-      return new Client2(origin2, opts);
+      return new Client(origin2, opts);
     }
     var Pool = class extends PoolBase {
       constructor(origin2, {
@@ -24844,7 +24844,7 @@ var require_agent = __commonJS({
     var { kClients, kRunning, kClose, kDestroy, kDispatch, kUrl } = require_symbols();
     var DispatcherBase = require_dispatcher_base();
     var Pool = require_pool();
-    var Client2 = require_client();
+    var Client = require_client();
     var util3 = require_util();
     var kOnConnect = Symbol("onConnect");
     var kOnDisconnect = Symbol("onDisconnect");
@@ -24854,7 +24854,7 @@ var require_agent = __commonJS({
     var kOptions = Symbol("options");
     var kOrigins = Symbol("origins");
     function defaultFactory(origin2, opts) {
-      return opts && opts.connections === 1 ? new Client2(origin2, opts) : new Pool(origin2, opts);
+      return opts && opts.connections === 1 ? new Client(origin2, opts) : new Pool(origin2, opts);
     }
     var Agent = class extends DispatcherBase {
       constructor({ factory: factory2 = defaultFactory, maxOrigins = Infinity, connect, ...options } = {}) {
@@ -24977,7 +24977,7 @@ var require_proxy_agent = __commonJS({
     var DispatcherBase = require_dispatcher_base();
     var { InvalidArgumentError, RequestAbortedError, SecureProxyConnectionError } = require_errors();
     var buildConnector = require_connect();
-    var Client2 = require_client();
+    var Client = require_client();
     var kAgent = Symbol("proxy agent");
     var kClient = Symbol("proxy client");
     var kProxyHeaders = Symbol("proxy headers");
@@ -24995,7 +24995,7 @@ var require_proxy_agent = __commonJS({
     };
     function defaultAgentFactory(origin2, opts) {
       if (opts.connections === 1) {
-        return new Client2(origin2, opts);
+        return new Client(origin2, opts);
       }
       return new Pool(origin2, opts);
     }
@@ -25010,7 +25010,7 @@ var require_proxy_agent = __commonJS({
         if (factory2) {
           this.#client = factory2(proxyUrl, { connect });
         } else {
-          this.#client = new Client2(proxyUrl, { connect });
+          this.#client = new Client(proxyUrl, { connect });
         }
       }
       [kDispatch](opts, handler2) {
@@ -25671,7 +25671,7 @@ var require_h2c_client = __commonJS({
     var { kClose, kDestroy } = require_symbols();
     var { InvalidArgumentError } = require_errors();
     var util3 = require_util();
-    var Client2 = require_client();
+    var Client = require_client();
     var DispatcherBase = require_dispatcher_base();
     var H2CClient = class extends DispatcherBase {
       #client = null;
@@ -25699,7 +25699,7 @@ var require_h2c_client = __commonJS({
           );
         }
         super();
-        this.#client = new Client2(origin2, {
+        this.#client = new Client(origin2, {
           ...opts,
           connect: this.#buildConnector(connect2),
           maxConcurrentStreams: defaultMaxConcurrentStreams,
@@ -26024,13 +26024,13 @@ var require_readable = __commonJS({
     function isUnusable(bodyReadable) {
       return util3.isDisturbed(bodyReadable) || isLocked(bodyReadable);
     }
-    function consume(stream4, type) {
-      assert(!stream4[kConsume]);
+    function consume(stream5, type) {
+      assert(!stream5[kConsume]);
       return new Promise((resolve, reject) => {
-        if (isUnusable(stream4)) {
-          const rState = stream4._readableState;
+        if (isUnusable(stream5)) {
+          const rState = stream5._readableState;
           if (rState.destroyed && rState.closeEmitted === false) {
-            stream4.on("error", reject).on("close", () => {
+            stream5.on("error", reject).on("close", () => {
               reject(new TypeError("unusable"));
             });
           } else {
@@ -26038,22 +26038,22 @@ var require_readable = __commonJS({
           }
         } else {
           queueMicrotask(() => {
-            stream4[kConsume] = {
+            stream5[kConsume] = {
               type,
-              stream: stream4,
+              stream: stream5,
               resolve,
               reject,
               length: 0,
               body: []
             };
-            stream4.on("error", function(err) {
+            stream5.on("error", function(err) {
               consumeFinish(this[kConsume], err);
             }).on("close", function() {
               if (this[kConsume].body !== null) {
                 consumeFinish(this[kConsume], new RequestAbortedError());
               }
             });
-            consumeStart(stream4[kConsume]);
+            consumeStart(stream5[kConsume]);
           });
         }
       });
@@ -26115,7 +26115,7 @@ var require_readable = __commonJS({
       return buffer;
     }
     function consumeEnd(consume2, encoding) {
-      const { type, body, resolve, stream: stream4, length } = consume2;
+      const { type, body, resolve, stream: stream5, length } = consume2;
       try {
         if (type === "text") {
           resolve(chunksDecode(body, length, encoding));
@@ -26124,13 +26124,13 @@ var require_readable = __commonJS({
         } else if (type === "arrayBuffer") {
           resolve(chunksConcat(body, length).buffer);
         } else if (type === "blob") {
-          resolve(new Blob(body, { type: stream4[kContentType] }));
+          resolve(new Blob(body, { type: stream5[kContentType] }));
         } else if (type === "bytes") {
           resolve(chunksConcat(body, length));
         }
         consumeFinish(consume2);
       } catch (err) {
-        stream4.destroy(err);
+        stream5.destroy(err);
       }
     }
     function consumePush(consume2, chunk) {
@@ -26527,10 +26527,10 @@ var require_api_stream = __commonJS({
         }
       }
     };
-    function stream4(opts, factory2, callback) {
+    function stream5(opts, factory2, callback) {
       if (callback === void 0) {
         return new Promise((resolve, reject) => {
-          stream4.call(this, opts, factory2, (err, data2) => {
+          stream5.call(this, opts, factory2, (err, data2) => {
             return err ? reject(err) : resolve(data2);
           });
         });
@@ -26546,7 +26546,7 @@ var require_api_stream = __commonJS({
         queueMicrotask(() => callback(err, { opaque }));
       }
     }
-    module2.exports = stream4;
+    module2.exports = stream5;
   }
 });
 
@@ -27521,7 +27521,7 @@ var require_mock_client = __commonJS({
   "../node_modules/cheerio/node_modules/undici/lib/mock/mock-client.js"(exports2, module2) {
     "use strict";
     var { promisify } = require("node:util");
-    var Client2 = require_client();
+    var Client = require_client();
     var { buildMockDispatch } = require_mock_utils();
     var {
       kDispatches,
@@ -27536,7 +27536,7 @@ var require_mock_client = __commonJS({
     var { MockInterceptor } = require_mock_interceptor();
     var Symbols = require_symbols();
     var { InvalidArgumentError } = require_errors();
-    var MockClient = class extends Client2 {
+    var MockClient = class extends Client {
       constructor(origin2, opts) {
         if (!opts || !opts.agent || typeof opts.agent.dispatch !== "function") {
           throw new InvalidArgumentError("Argument opts.agent must implement Agent");
@@ -31016,30 +31016,30 @@ var require_cache2 = __commonJS({
       return dispatch(opts, new CacheHandler(globalOpts, cacheKey, handler2));
     }
     function sendCachedValue(handler2, opts, result, age, context, isStale) {
-      const stream4 = util3.isStream(result.body) ? result.body : Readable2.from(result.body ?? []);
-      assert(!stream4.destroyed, "stream should not be destroyed");
-      assert(!stream4.readableDidRead, "stream should not be readableDidRead");
+      const stream5 = util3.isStream(result.body) ? result.body : Readable2.from(result.body ?? []);
+      assert(!stream5.destroyed, "stream should not be destroyed");
+      assert(!stream5.readableDidRead, "stream should not be readableDidRead");
       const controller = {
         resume() {
-          stream4.resume();
+          stream5.resume();
         },
         pause() {
-          stream4.pause();
+          stream5.pause();
         },
         get paused() {
-          return stream4.isPaused();
+          return stream5.isPaused();
         },
         get aborted() {
-          return stream4.destroyed;
+          return stream5.destroyed;
         },
         get reason() {
-          return stream4.errored;
+          return stream5.errored;
         },
         abort(reason) {
-          stream4.destroy(reason ?? new AbortError());
+          stream5.destroy(reason ?? new AbortError());
         }
       };
-      stream4.on("error", function(err) {
+      stream5.on("error", function(err) {
         if (!this.readableEnded) {
           if (typeof handler2.onResponseError === "function") {
             handler2.onResponseError(controller, err);
@@ -31053,7 +31053,7 @@ var require_cache2 = __commonJS({
         }
       });
       handler2.onRequestStart?.(controller, context);
-      if (stream4.destroyed) {
+      if (stream5.destroyed) {
         return;
       }
       const headers = { ...result.headers, age: String(age) };
@@ -31062,9 +31062,9 @@ var require_cache2 = __commonJS({
       }
       handler2.onResponseStart?.(controller, result.statusCode, headers, result.statusMessage);
       if (opts.method === "HEAD") {
-        stream4.destroy();
+        stream5.destroy();
       } else {
-        stream4.on("data", function(chunk) {
+        stream5.on("data", function(chunk) {
           handler2.onResponseData?.(controller, chunk);
         });
       }
@@ -34425,7 +34425,7 @@ var require_fetch = __commonJS({
           fetchParams.controller.abort(reason);
         }
       };
-      const stream4 = new ReadableStream(
+      const stream5 = new ReadableStream(
         {
           start(controller) {
             fetchParams.controller.controller = controller;
@@ -34435,7 +34435,7 @@ var require_fetch = __commonJS({
           type: "bytes"
         }
       );
-      response.body = { stream: stream4, source: null, length: null };
+      response.body = { stream: stream5, source: null, length: null };
       if (!fetchParams.controller.resume) {
         fetchParams.controller.on("terminated", onAborted);
       }
@@ -34471,7 +34471,7 @@ var require_fetch = __commonJS({
           if (buffer.byteLength) {
             fetchParams.controller.controller.enqueue(buffer);
           }
-          if (isErrored(stream4)) {
+          if (isErrored(stream5)) {
             fetchParams.controller.terminate();
             return;
           }
@@ -34483,13 +34483,13 @@ var require_fetch = __commonJS({
       function onAborted(reason) {
         if (isAborted(fetchParams)) {
           response.aborted = true;
-          if (isReadable(stream4)) {
+          if (isReadable(stream5)) {
             fetchParams.controller.controller.error(
               fetchParams.controller.serializedAbortReason
             );
           }
         } else {
-          if (isReadable(stream4)) {
+          if (isReadable(stream5)) {
             fetchParams.controller.controller.error(new TypeError("terminated", {
               cause: isErrorLike(reason) ? reason : void 0
             }));
@@ -34875,8 +34875,8 @@ var require_cache3 = __commonJS({
         const clonedResponse = cloneResponse(innerResponse);
         const bodyReadPromise = createDeferredPromise();
         if (innerResponse.body != null) {
-          const stream4 = innerResponse.body.stream;
-          const reader = stream4.getReader();
+          const stream5 = innerResponse.body.stream;
+          const reader = stream5.getReader();
           readAllBytes(reader, bodyReadPromise.resolve, bodyReadPromise.reject);
         } else {
           bodyReadPromise.resolve(void 0);
@@ -38440,7 +38440,7 @@ var require_eventsource = __commonJS({
 var require_undici = __commonJS({
   "../node_modules/cheerio/node_modules/undici/index.js"(exports2, module2) {
     "use strict";
-    var Client2 = require_client();
+    var Client = require_client();
     var Dispatcher = require_dispatcher();
     var Pool = require_pool();
     var BalancedPool = require_balanced_pool();
@@ -38466,7 +38466,7 @@ var require_undici = __commonJS({
     var RedirectHandler = require_redirect_handler();
     Object.assign(Dispatcher.prototype, api);
     module2.exports.Dispatcher = Dispatcher;
-    module2.exports.Client = Client2;
+    module2.exports.Client = Client;
     module2.exports.Pool = Pool;
     module2.exports.BalancedPool = BalancedPool;
     module2.exports.Agent = Agent;
@@ -41058,8 +41058,8 @@ var isHttps = /https:?/;
 var supportedProtocols = platform_default.protocols.map((protocol) => {
   return protocol + ":";
 });
-var flushOnFinish = (stream4, [throttled, flush]) => {
-  stream4.on("end", flush).on("error", flush);
+var flushOnFinish = (stream5, [throttled, flush]) => {
+  stream5.on("end", flush).on("error", flush);
   return throttled;
 };
 var Http2Sessions = class {
@@ -41105,13 +41105,13 @@ var Http2Sessions = class {
       let timer;
       let streamsCount = 0;
       session.request = function() {
-        const stream4 = originalRequestFn.apply(this, arguments);
+        const stream5 = originalRequestFn.apply(this, arguments);
         streamsCount++;
         if (timer) {
           clearTimeout(timer);
           timer = null;
         }
-        stream4.once("close", () => {
+        stream5.once("close", () => {
           if (!--streamsCount) {
             timer = setTimeout(() => {
               timer = null;
@@ -41119,7 +41119,7 @@ var Http2Sessions = class {
             }, sessionTimeout);
           }
         });
-        return stream4;
+        return stream5;
       };
     }
     session.once("close", removeSession);
@@ -42043,12 +42043,12 @@ var readBytes = async function* (iterable, chunkSize) {
     yield* streamChunk(chunk, chunkSize);
   }
 };
-var readStream = async function* (stream4) {
-  if (stream4[Symbol.asyncIterator]) {
-    yield* stream4;
+var readStream = async function* (stream5) {
+  if (stream5[Symbol.asyncIterator]) {
+    yield* stream5;
     return;
   }
-  const reader = stream4.getReader();
+  const reader = stream5.getReader();
   try {
     for (; ; ) {
       const { done, value } = await reader.read();
@@ -42061,8 +42061,8 @@ var readStream = async function* (stream4) {
     await reader.cancel();
   }
 };
-var trackStream = (stream4, chunkSize, onProgress, onFinish) => {
-  const iterator2 = readBytes(stream4, chunkSize);
+var trackStream = (stream5, chunkSize, onProgress, onFinish) => {
+  const iterator2 = readBytes(stream5, chunkSize);
   let bytes = 0;
   let done;
   let _onFinish = (e) => {

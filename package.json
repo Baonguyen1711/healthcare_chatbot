@@ -14,12 +14,16 @@
     "@aws-sdk/client-scheduler": "^3.901.0",
     "@aws-sdk/lib-dynamodb": "^3.894.0",
     "aws-sdk": "^2.1692.0",
+    "cheerio": "^1.1.0",
     "moment-timezone": "^0.6.0",
     "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@types/aws-lambda": "^8.10.158",
+    "@types/cheerio": "^0.22.35",
     "@types/web-push": "^3.6.4",
-    "serverless-dotenv-plugin": "^6.0.0",
+    "serverless-dynamodb-local": "^0.2.40",
+    "serverless-esbuild": "^1.56.0",
     "serverless-offline": "^14.4.0"
   }
 }
