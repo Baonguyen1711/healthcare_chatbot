@@ -1,0 +1,122 @@
+# "org" ensures this Service is used with the correct Serverless Framework Access Key.
+org: baonguyen1711
+# "app" enables Serverless Framework Dashboard features and sharing them with other Services.
+app: healthcare-system
+# "service" is the name of this project. This will also be added to your AWS resource names.
+service: auth-service
+
+plugins:
+  - serverless-dotenv-plugin
+  - serverless-offline
+
+custom:
+  dotenv:
+    path: .env
+  
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  stage: dev
+
+  # Uncomment to easily set up a custom domain. Read the docs for more details:
+  # https://www.serverless.com/framework/docs/providers/aws/guide/domains
+  # domain: api.example.com
+  environment:
+    USER_TABLE: UsersTable
+    COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID}
+    COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID}
+    COGNITO_CLIENT_SECRET: ${env:COGNITO_CLIENT_SECRET}
+    #COGNITO_CLIENT=https://cognito-idp.ap-southeast-1.amazonaws.com/ap-southeast-1_TSwqQinFZ
+    COGNITO_DOMAIN: ${env:COGNITO_DOMAIN}
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:Scan
+        - dynamodb:Query
+      Resource: 
+        - "arn:aws:dynamodb:us-east-1:290158030807:table/UsersTable"
+  httpApi:
+    cors:
+      allowedOrigins:
+        - http://localhost:8080
+      allowedHeaders:
+        - Content-Type
+        - Authorization
+      allowedMethods:
+        - OPTIONS
+        - GET
+        - POST
+        - PUT
+        - DELETE
+      allowCredentials: true
+
+package:
+  include:
+    - ../shared/**   
+  exclude:
+    - node_modules/**
+
+functions:
+  signUp:
+    handler: handlers/authHandlers.signUp
+    events:
+      - httpApi:
+          path: /auth/sign-up
+          method: post
+
+  signIn:
+    handler: handlers/authHandlers.signIn
+    events:
+      - httpApi:
+          path: /auth/sign-in
+          method: post
+
+  confirmSignUp:
+    handler: handlers/authHandlers.confirmSignUp
+    events:
+      - httpApi:
+          path: /auth/confirm-sign-up
+          method: post
+
+  forgotPassword:
+    handler: handlers/authHandlers.forgotPassword
+    events:
+      - httpApi:
+          path: /auth/forgot-password
+          method: post
+
+  confirmForgotPassword:
+    handler: handlers/authHandlers.confirmForgotPassword
+    events:
+      - httpApi:
+          path: /auth/confirm-forgot-password
+          method: post
+
+  refreshToken:
+    handler: handlers/authHandlers.refreshToken
+    events:
+      - httpApi:
+          path: /auth/refresh-token
+          method: post
+
+  # Optional
+  # oauthCallback:
+  #   handler: handlers/authHandlers.oauthCallback
+  #   events:
+  #     - httpApi:
+  #         path: /auth/oauth-callback
+  #         method: get
+  #         cors: true
+
+  # signOut:
+  #   handler: handlers/authHandlers.signOut
+  #   events:
+  #     - httpApi:
+  #         path: /auth/sign-out
+  #         method: post
+  #         cors: true
