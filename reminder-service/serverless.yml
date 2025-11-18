@@ -47,6 +47,12 @@ provider:
         - DELETE
       allowCredentials: true
 
+package:
+  include:
+    - ../shared/**   
+  exclude:
+    - node_modules/**
+
 functions:
   sendNotification:
     handler: handlers/handler.sendNotificationHandler

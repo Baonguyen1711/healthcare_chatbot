@@ -4,7 +4,7 @@ export interface AddSubscriptionProps {
         p256dh: string;
         auth: string;
     };
-    userId: string;
+    userId?: string;
     notifyAt: string; // ISO string
 }
 

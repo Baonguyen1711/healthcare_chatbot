@@ -1,6 +1,8 @@
-import { sendReminder, createReminder } from "../services/reminderService";
+import { sendReminder, createReminderService } from "../services/reminderService";
 import { AddSubscriptionProps } from "../models/reminderModels";
 import { formatResponse } from "../../shared/response";
+import { verifyToken } from "../../shared/verifyJwt"
+import { withAuth } from "../../shared/authRequire";
 
 export const sendNotificationHandler = async (event: any) => {
   try {
@@ -17,7 +19,7 @@ export const sendNotificationHandler = async (event: any) => {
   }
 }
 
-export const createReminderHandler = async (event: any) => {
+const createReminder = async (event: any, userId: string) => {
   try {
     const method = event.requestContext?.http?.method;
     // Handle preflight CORS request
@@ -28,10 +30,17 @@ export const createReminderHandler = async (event: any) => {
     // Extract your subscription data from the request body
     const subscription: AddSubscriptionProps = JSON.parse(event.body);
 
-    await createReminder(subscription);
+    const createReminderObject = {
+      ...subscription,
+      userId: userId
+    }
+
+    await createReminderService(createReminderObject);
     return formatResponse(201, { message: "Reminder created" });
   } catch (error) {
     console.error("Error in createReminderHandler:", error);
     return formatResponse(500, { message: "Internal Server Error" });
   }
 };
+
+export const createReminderHandler = withAuth(createReminder)
