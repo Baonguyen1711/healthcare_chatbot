@@ -10,11 +10,18 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.930.0",
     "@aws-sdk/client-dynamodb": "^3.894.0",
     "@aws-sdk/client-scheduler": "^3.901.0",
     "@aws-sdk/lib-dynamodb": "^3.894.0",
+    "aws-lambda": "^1.0.7",
     "aws-sdk": "^2.1692.0",
+
     "cheerio": "^1.1.0",
+
+    "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^3.2.0",
+
     "moment-timezone": "^0.6.0",
     "web-push": "^3.6.7"
   },
@@ -24,6 +31,9 @@
     "@types/web-push": "^3.6.4",
     "serverless-dynamodb-local": "^0.2.40",
     "serverless-esbuild": "^1.56.0",
-    "serverless-offline": "^14.4.0"
+    "serverless-offline": "^14.4.0",
+    "serverless-dotenv-plugin": "^6.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
   }
 }
