@@ -43,7 +43,7 @@ export async function addSubscription(subscription: AddSubscriptionProps): Promi
 
   const sanitizedDate = notifyAt.replace(/[:.]/g, '-'); // replace : and . with -
   console.log("Sanitized date:", sanitizedDate);
-  const scheduleName = `user-${userId}-${sanitizedDate}`;
+  const scheduleName = `u-${userId?.slice(0, 8)}-${sanitizedDate}`;
   console.log("Schedule name:", scheduleName);
 
 

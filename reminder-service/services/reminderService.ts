@@ -11,7 +11,7 @@ export const sendReminder = async (event: any) => {
   await sendNotification(pushSubscription, { title: "Reminder", message });
 }
 
-export const createReminder = async (subscription: AddSubscriptionProps) => {
+export const createReminderService = async (subscription: AddSubscriptionProps) => {
 
   await addSubscription(subscription);
 
