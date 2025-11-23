@@ -1,0 +1,188 @@
+# "org" ensures this Service is used with the correct Serverless Framework Access Key.
+# org: baonguyen1711
+# "app" enables Serverless Framework Dashboard features and sharing them with other Services.
+# app: healthcare-system
+# "service" is the name of this project. This will also be added to your AWS resource names.
+service: appointment-service
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  # Uncomment to easily set up a custom domain. Read the docs for more details:
+  # https://www.serverless.com/framework/docs/providers/aws/guide/domains
+  # domain: api.example.com
+  environment:
+    APPOINTMENT_TABLE: appointmentTable
+    MY_AWS_REGION: us-east-1
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:Scan
+        - dynamodb:Query
+      Resource:
+        - "arn:aws:dynamodb:${self:provider.region}:290158030807:table/${self:provider.environment.APPOINTMENT_TABLE}"
+        - "arn:aws:dynamodb:${self:provider.region}:290158030807:table/${self:provider.environment.APPOINTMENT_TABLE}/index/*"
+  httpApi:  # <-- thêm cái này
+    cors:
+      allowedOrigins:
+        - "http://localhost:8080"
+        - "http://localhost:3000"
+      allowedHeaders:
+        - Content-Type
+        - Authorization
+      allowedMethods:
+        - OPTIONS
+        - GET
+        - POST
+        - PUT
+        - DELETE
+      allowCredentials: true
+functions:
+  addAppointment:
+    handler: handlers/appoinmentHandler.addAppointment
+    events:
+      - httpApi:
+          path: /appointment
+          method: post
+  addDepartment:
+    handler: handlers/departmentHandler.addDepartment
+    events:
+      - httpApi:
+          path: /department
+          method: post
+
+  getAllDepartment:
+    handler: handlers/departmentHandler.getAllDepartment
+    events:
+      - httpApi:
+          path: /getDepartment
+          method: get
+
+  getDepartmentsByHospital:
+    handler: handlers/departmentHandler.getDepartmentsByHospitalId
+    events:
+      - httpApi:
+          path: /getDepartmentsByHospitalId
+          method: post
+
+  addDoctor:
+    handler: handlers/doctorHandler.addDoctor
+    events:
+      - httpApi:
+          path: /doctor
+          method: post
+
+  getDoctorByDepartment:
+    handler: handlers/doctorHandler.getDoctorByDepartment
+    events:
+      - httpApi:
+          path: /getDoctorByDepartment
+          method: post
+  getDoctorsByHospital:
+    handler: handlers/doctorHandler.getDoctorsByHospital
+    events:
+      - httpApi:
+          path: /doctors/hospital
+          method: get
+  getDoctorById:
+    handler: handlers/doctorHandler.getDoctorById
+    events:
+      - httpApi:
+          path: /doctor/getById
+          method: post
+  addHospital:
+    handler: handlers/hospitalHandler.addHospital
+    events:
+      - httpApi:
+          method: POST
+          path: /hospitals
+  getHospitalById:
+    handler: handlers/hospitalHandler.getHospitalById
+    events:
+      - httpApi:
+          method: POST
+          path: /hospitals/getById
+  getAllHospitals:
+    handler: handlers/hospitalHandler.getAllHospitals
+    events:
+      - httpApi:
+          method: GET
+          path: /hospitals
+  getAppointmentsByDoctor:
+    handler: handlers/appoinmentHandler.getAppointmentsByDoctor
+    events:
+      - httpApi:
+          path: /appointments/doctor
+          method: get
+  getAppointmentsByUser:
+    handler: handlers/appoinmentHandler.getAppointmentsByUser
+    events:
+      - httpApi:
+          path: /appointments/user
+          method: get
+  getAppointmentsByStatus:
+    handler: handlers/appoinmentHandler.getAppointmentsByStatus
+    events:
+      - httpApi:
+          path: /appointments/status
+          method: get
+  getAppointmentsByHospital:
+    handler: handlers/appoinmentHandler.getAppointmentsByHospital
+    events:
+      - httpApi:
+          path: /appointments/hospital
+          method: get
+
+  # Doctor Schedule endpoints
+  createDoctorSchedule:
+    handler: handlers/doctorScheduleHandler.createDoctorSchedule
+    events:
+      - httpApi:
+          path: /doctor/schedule
+          method: post
+  getDoctorSchedule:
+    handler: handlers/doctorScheduleHandler.getDoctorSchedule
+    events:
+      - httpApi:
+          path: /doctor/getSchedule
+          method: post
+  getAvailableSlots:
+    handler: handlers/doctorScheduleHandler.getAvailableSlots
+    events:
+      - httpApi:
+          path: /doctor/slots/get
+          method: get
+  getDoctorSchedulesByDateRange:
+    handler: handlers/doctorScheduleHandler.getDoctorSchedulesByDateRange
+    events:
+      - httpApi:
+          path: /doctor/schedules/range
+          method: get
+  bookSlot:
+    handler: handlers/doctorScheduleHandler.bookSlot
+    events:
+      - httpApi:
+          path: /doctor/slot/book
+          method: get
+  cancelSlot:
+    handler: handlers/doctorScheduleHandler.cancelSlot
+    events:
+      - httpApi:
+          path: /doctor/slot/cancel
+          method: post
+plugins:
+  - serverless-offline
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node20
+    platform: node
+    concurrency: 10

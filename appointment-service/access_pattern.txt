@@ -1,0 +1,11 @@
+Lấy thông tin bác sĩ theo doctorId.
+
+Lấy tất cả bác sĩ trong 1 khoa.
+
+Lấy thông tin khoa theo departmentId.
+
+Lấy tất cả lịch hẹn của 1 bác sĩ.
+
+Lấy tất cả lịch hẹn của 1 user.
+
+Lấy tất cả lịch hẹn theo trạng thái (booked / cancelled / …).   
