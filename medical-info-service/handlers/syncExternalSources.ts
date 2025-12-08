@@ -1,122 +1,108 @@
-import { ScheduledHandler } from "aws-lambda";
-import { ExternalSourceService } from "../services/externalSourceService";
-import { MedicalInfoService } from "../services/medicalInfoService";
-import { MedicalCategory, SourceType } from "../models/medicalInfo.model";
+import { EXTERNAL_SOURCES } from "../models/externalSource.config";
+import { SourceType } from "../models/medicalInfo.model";
+import axios from "axios";
+import * as cheerio from "cheerio";
 
-const externalSourceService = new ExternalSourceService();
-const medicalInfoService = new MedicalInfoService();
+export class ExternalSourceService {
+  async syncAllSources(topics: string[]) {
+    let allArticles: any[] = [];
 
-const SYNC_TOPICS = [
-  "diabetes",
-  "covid-19",
-  "vaccination",
-  "heart-disease",
-  "mental-health",
-  "nutrition",
-  "cancer",
-  "infectious-diseases",
-];
+    for (const src of EXTERNAL_SOURCES) {
+      let list: any[] = [];
 
-export const handler: ScheduledHandler = async () => {
-  console.log("Starting sync of external medical sources...");
+      switch (src.name) {
+        case SourceType.WHO:
+          list = await this.fetchWHO(topics);
+          break;
 
-  try {
-    const articles = await externalSourceService.syncAllSources(SYNC_TOPICS);
-    console.log(`Fetched ${articles.length} articles`);
+        case SourceType.CDC:
+          list = await this.fetchCDC(topics);
+          break;
 
-    let syncedCount = 0;
-    let errorCount = 0;
-
-    for (const article of articles) {
-      try {
-        const category = determineCategory(article.title, article.content);
-
-        await medicalInfoService.create({
-          title: article.title,
-          category,
-          content: article.content,
-          summary: article.content.substring(0, 200) + "...",
-          source: article.source,
-          sourceUrl: article.sourceUrl,
-          tags: extractTags(article.title, article.content),
-          language: article.source === SourceType.MOH_VN ? "vi" : "en",
-          publishedDate: new Date().toISOString(),
-          reliability: 5,
-          isVerified: true,
-        });
-
-        syncedCount++;
-      } catch (error) {
-        console.error(`Error syncing article: ${article.title}`, error);
-        errorCount++;
+        case SourceType.MOH_VN:
+          list = await this.scrapeMOH(topics);
+          break;
       }
+
+      console.log(`Fetched ${list.length} from ${src.name}`);
+      allArticles.push(...list);
     }
 
-    console.log(`Sync completed: ${syncedCount} synced, ${errorCount} errors`);
-  } catch (error) {
-    console.error("Sync failed:", error);
-    throw error; // AWS Scheduled vẫn cho phép throw error để trigger retry
+    return allArticles;
   }
-};
 
-// ===== Helper functions =====
+  // ================= WHO ===================
+  async fetchWHO(topics: string[]) {
+    let items: any[] = [];
 
-function determineCategory(title: string, content: string): MedicalCategory {
-  const text = (title + " " + content).toLowerCase();
+    for (const t of topics) {
+      const url = `https://www.who.int/api/search?query=${t}`;
+      const res = await axios.get(url);
 
-  if (text.includes("covid") || text.includes("coronavirus"))
-    return MedicalCategory.COVID19;
-  if (text.includes("vaccine") || text.includes("vaccination"))
-    return MedicalCategory.VACCINATION;
-  if (text.includes("nutrition") || text.includes("diet"))
-    return MedicalCategory.NUTRITION;
-  if (
-    text.includes("mental") ||
-    text.includes("depression") ||
-    text.includes("anxiety")
-  )
-    return MedicalCategory.MENTAL_HEALTH;
-  if (
-    text.includes("medicine") ||
-    text.includes("drug") ||
-    text.includes("medication")
-  )
-    return MedicalCategory.MEDICATION;
-  if (text.includes("prevent") || text.includes("hygiene"))
-    return MedicalCategory.PREVENTION;
-  if (text.includes("treatment") || text.includes("therapy"))
-    return MedicalCategory.TREATMENT;
-  if (text.includes("emergency") || text.includes("first aid"))
-    return MedicalCategory.FIRST_AID;
+      const results = res.data?.results || [];
 
-  return MedicalCategory.DISEASE;
-}
-
-function extractTags(title: string, content: string): string[] {
-  const text = (title + " " + content).toLowerCase();
-  const tags: string[] = [];
-
-  const keywords = [
-    "diabetes",
-    "heart",
-    "cancer",
-    "covid",
-    "vaccine",
-    "mental health",
-    "nutrition",
-    "prevention",
-    "treatment",
-    "symptoms",
-    "diagnosis",
-    "medication",
-    "therapy",
-  ];
-
-  keywords.forEach((keyword) => {
-    if (text.includes(keyword)) {
-      tags.push(keyword);
+      results.forEach((r: any) => {
+        items.push({
+          title: r.title,
+          content: r.snippet || "",
+          source: SourceType.WHO,
+          sourceUrl: r.url,
+        });
+      });
     }
-  });
 
-  return [...new Set(tags)];
+    return items;
+  }
+
+  // ================= CDC ===================
+  async fetchCDC(topics: string[]) {
+    let items: any[] = [];
+
+    for (const t of topics) {
+      const url = `https://tools.cdc.gov/api/v2/resources/media?search=${t}`;
+      const res = await axios.get(url);
+
+      const results = res.data?.results || [];
+
+      results.forEach((r: any) => {
+        items.push({
+          title: r.name,
+          content: r.description || "",
+          source: SourceType.CDC,
+          sourceUrl: r.url,
+        });
+      });
+    }
+
+    return items;
+  }
+
+  // ================= MOH.VN SCRAPING ===================
+  async scrapeMOH(topics: string[]) {
+    const url = `https://moh.gov.vn/`;
+    const html = await axios.get(url).then((r) => r.data);
+
+    const $ = cheerio.load(html);
+    const items: any[] = [];
+
+    $("article a, .news-item a, .item-news a").each((_, el) => {
+      const title = $(el).text().trim();
+      const link = "https://moh.gov.vn" + $(el).attr("href");
+
+      if (title.length < 10) return;
+
+      // filter theo topic
+      const lower = title.toLowerCase();
+      if (!topics.some((t) => lower.includes(t.replace("-", " ")))) return;
+
+      items.push({
+        title,
+        content: "", // sẽ lấy nội dung chi tiết ở bước sau
+        source: SourceType.MOH_VN,
+        sourceUrl: link,
+      });
+    });
+
+    return items;
+  }
 }

@@ -2,175 +2,200 @@ import { DynamoDB } from "aws-sdk";
 import { v4 as uuidv4 } from "uuid";
 import {
   MedicalInfo,
-  SearchQuery,
   MedicalCategory,
+  SearchQuery,
 } from "../models/medicalInfo.model";
 
-const dynamoDB = new DynamoDB.DocumentClient();
-const tableName = process.env.DYNAMODB_TABLE!;
+const dynamo = new DynamoDB.DocumentClient();
+const TABLE = process.env.DYNAMODB_TABLE!;
 
 export class MedicalInfoService {
+  // ============================
+  // GET ITEM BY ID
+  // ============================
   async getById(id: string): Promise<MedicalInfo | null> {
     const params = {
-      TableName: tableName,
+      TableName: TABLE,
       Key: { id },
     };
 
-    const result = await dynamoDB.get(params).promise();
+    const result = await dynamo.get(params).promise();
 
-    if (result.Item) {
-      // Increment view count
-      await this.incrementViews(id);
-    }
+    if (!result.Item) return null;
 
-    return (result.Item as MedicalInfo) || null;
+    // Increment view count (non-blocking)
+    this.incrementViews(id);
+
+    return result.Item as MedicalInfo;
   }
 
+  // ============================
+  // SEARCH ARTICLES
+  // ============================
   async search(query: SearchQuery): Promise<MedicalInfo[]> {
-    let params: any = {
-      TableName: tableName,
-      Limit: query.limit || 20,
+    const params: any = {
+      TableName: TABLE,
+      Limit: query.limit ?? 20,
     };
 
+    let isQuery = false;
+    let filterExp: string[] = [];
+    let expValues: any = {};
+    let expNames: any = {};
+
+    // Search by category (use GSI)
     if (query.category) {
       params.IndexName = "CategoryIndex";
       params.KeyConditionExpression = "category = :category";
       params.ExpressionAttributeValues = {
         ":category": query.category,
       };
+      isQuery = true;
     }
 
-    // Add filters
-    const filterExpressions: string[] = [];
-    const expressionValues: any = params.ExpressionAttributeValues || {};
-
+    // Keyword search
     if (query.keyword) {
-      filterExpressions.push(
-        "(contains(title, :keyword) OR contains(content, :keyword) OR contains(tags, :keyword))"
+      filterExp.push(
+        "(contains(title, :kw) OR contains(content, :kw) OR contains(tags, :kw))"
       );
-      expressionValues[":keyword"] = query.keyword;
+      expValues[":kw"] = query.keyword;
     }
 
     if (query.source) {
-      filterExpressions.push("source = :source");
-      expressionValues[":source"] = query.source;
+      filterExp.push("source = :source");
+      expValues[":source"] = query.source;
     }
 
     if (query.language) {
-      filterExpressions.push("language = :language");
-      expressionValues[":language"] = query.language;
+      filterExp.push("language = :lang");
+      expValues[":lang"] = query.language;
     }
 
-    if (filterExpressions.length > 0) {
-      params.FilterExpression = filterExpressions.join(" AND ");
-      params.ExpressionAttributeValues = expressionValues;
+    if (filterExp.length > 0) {
+      params.FilterExpression = filterExp.join(" AND ");
+      params.ExpressionAttributeValues = {
+        ...(params.ExpressionAttributeValues || {}),
+        ...expValues,
+      };
     }
 
-    const result = query.category
-      ? await dynamoDB.query(params).promise()
-      : await dynamoDB.scan(params).promise();
+    const result = isQuery
+      ? await dynamo.query(params).promise()
+      : await dynamo.scan(params).promise();
 
     return result.Items as MedicalInfo[];
   }
 
+  // ============================
+  // GET BY CATEGORY
+  // ============================
   async getByCategory(
     category: MedicalCategory,
     limit: number = 20
   ): Promise<MedicalInfo[]> {
     const params = {
-      TableName: tableName,
+      TableName: TABLE,
       IndexName: "CategoryIndex",
-      KeyConditionExpression: "category = :category",
-      ExpressionAttributeValues: {
-        ":category": category,
-      },
+      KeyConditionExpression: "category = :cat",
+      ExpressionAttributeValues: { ":cat": category },
       Limit: limit,
-      ScanIndexForward: false, // Get newest first
+      ScanIndexForward: false, // newest first
     };
 
-    const result = await dynamoDB.query(params).promise();
+    const result = await dynamo.query(params).promise();
     return result.Items as MedicalInfo[];
   }
 
+  // ============================
+  // CREATE NEW ARTICLE
+  // ============================
   async create(
     info: Omit<MedicalInfo, "id" | "views" | "lastUpdated">
   ): Promise<MedicalInfo> {
-    const medicalInfo: MedicalInfo = {
+    const item: MedicalInfo = {
       ...info,
       id: uuidv4(),
       views: 0,
       lastUpdated: new Date().toISOString(),
     };
 
-    await dynamoDB
+    await dynamo
       .put({
-        TableName: tableName,
-        Item: medicalInfo,
+        TableName: TABLE,
+        Item: item,
       })
       .promise();
 
-    return medicalInfo;
+    return item;
   }
 
+  // ============================
+  // UPDATE ARTICLE
+  // ============================
   async update(
     id: string,
     updates: Partial<MedicalInfo>
   ): Promise<MedicalInfo> {
-    const updateExpression: string[] = [];
-    const expressionAttributeValues: any = {};
-    const expressionAttributeNames: any = {};
+    const updateExp: string[] = [];
+    const names: any = {};
+    const values: any = {};
 
-    Object.keys(updates).forEach((key, index) => {
-      updateExpression.push(`#attr${index} = :val${index}`);
-      expressionAttributeNames[`#attr${index}`] = key;
-      expressionAttributeValues[`:val${index}`] =
-        updates[key as keyof MedicalInfo];
+    Object.entries(updates).forEach(([key, value], index) => {
+      updateExp.push(`#f${index} = :v${index}`);
+      names[`#f${index}`] = key;
+      values[`:v${index}`] = value;
     });
 
-    // Always update lastUpdated
-    updateExpression.push(`#lastUpdated = :lastUpdated`);
-    expressionAttributeNames["#lastUpdated"] = "lastUpdated";
-    expressionAttributeValues[":lastUpdated"] = new Date().toISOString();
+    // always update lastUpdated
+    updateExp.push(`#updated = :updated`);
+    names["#updated"] = "lastUpdated";
+    values[":updated"] = new Date().toISOString();
 
     const params = {
-      TableName: tableName,
+      TableName: TABLE,
       Key: { id },
-      UpdateExpression: `SET ${updateExpression.join(", ")}`,
-      ExpressionAttributeNames: expressionAttributeNames,
-      ExpressionAttributeValues: expressionAttributeValues,
+      UpdateExpression: `SET ${updateExp.join(", ")}`,
+      ExpressionAttributeNames: names,
+      ExpressionAttributeValues: values,
       ReturnValues: "ALL_NEW",
     };
 
-    const result = await dynamoDB.update(params).promise();
+    const result = await dynamo.update(params).promise();
     return result.Attributes as MedicalInfo;
   }
 
+  // ============================
+  // INCREMENT VIEWS
+  // ============================
   async incrementViews(id: string): Promise<void> {
-    await dynamoDB
+    await dynamo
       .update({
-        TableName: tableName,
+        TableName: TABLE,
         Key: { id },
-        UpdateExpression: "ADD #views :increment",
-        ExpressionAttributeNames: {
-          "#views": "views",
-        },
+        UpdateExpression: "ADD views :inc",
         ExpressionAttributeValues: {
-          ":increment": 1,
+          ":inc": 1,
         },
       })
       .promise();
   }
 
+  // ============================
+  // POPULAR TOPICS BY VIEW COUNT
+  // ============================
   async getPopularTopics(limit: number = 10): Promise<MedicalInfo[]> {
-    const params = {
-      TableName: tableName,
-      Limit: 100, // Get more items to sort
-    };
+    const result = await dynamo
+      .scan({
+        TableName: TABLE,
+        ProjectionExpression:
+          "id, title, views, category, summary, publishedDate",
+      })
+      .promise();
 
-    const result = await dynamoDB.scan(params).promise();
-    const items = result.Items as MedicalInfo[];
+    const sorted = (result.Items as MedicalInfo[]).sort(
+      (a, b) => b.views - a.views
+    );
 
-    // Sort by views and return top items
-    return items.sort((a, b) => b.views - a.views).slice(0, limit);
+    return sorted.slice(0, limit);
   }
 }

@@ -1,11 +1,9 @@
-#org: uitdev
-#app: healthcare-system
 service: medical-info-service
 
 provider:
   name: aws
   runtime: nodejs18.x
-  region: ap-southeast-1
+  region: us-east-1
   stage: ${opt:stage, 'dev'}
   environment:
     DYNAMODB_TABLE: ${self:service}-${self:provider.stage}
@@ -25,9 +23,6 @@ provider:
   httpApi:
     cors: true
 
-build:
-  esbuild: false
-
 functions:
   getMedicalInfo:
     handler: handlers/getMedicalInfo.handler
@@ -35,6 +30,7 @@ functions:
       - httpApi:
           path: /medical-info/{id}
           method: get
+
   searchMedicalInfo:
     handler: handlers/searchMedicalInfo.handler
     timeout: 30
@@ -42,22 +38,23 @@ functions:
       - httpApi:
           path: /medical-info/search
           method: get
+
   getInfoByCategory:
     handler: handlers/getInfoByCategory.handler
     events:
       - httpApi:
           path: /medical-info/category/{category}
           method: get
+
   syncExternalSources:
     handler: handlers/syncExternalSources.handler
+    timeout: 300
     events:
       - schedule:
           rate: cron(0 2 * * ? *)
           description: "Sync medical info daily at 2 AM"
-    timeout: 300
 
 resources:
-  # Phần resources không thay đổi
   Resources:
     MedicalInfoTable:
       Type: AWS::DynamoDB::Table
@@ -95,6 +92,7 @@ resources:
         ProvisionedThroughput:
           ReadCapacityUnits: 5
           WriteCapacityUnits: 5
+
     CacheTable:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -112,39 +110,16 @@ resources:
           ReadCapacityUnits: 5
           WriteCapacityUnits: 5
 
-### ----- THAY ĐỔI BẮT ĐẦU TỪ ĐÂY ----- ###
-
 plugins:
-  - serverless-esbuild # <-- THÊM CÁI NÀY
   - serverless-dynamodb-local
   - serverless-offline
 
-# THÊM TOÀN BỘ PHẦN NÀY VÀO CUỐI FILE
 custom:
-  esbuild:
-    bundle: true
-    minify: false
-    sourcemap: true
-    exclude: ["aws-sdk"]
-    target: "node18"
-    define: { "require.resolve": undefined }
-    platform: "node"
-    concurrency: 10
-
-  # THÊM KHỐI NÀY (ngang hàng với esbuild)
   dynamodb:
     stages:
-      - dev # Chỉ chạy ở stage 'dev' (khi dùng serverless offline)
+      - dev
     start:
-      port: 8000 # Chạy DynamoDB giả ở cổng 8000
-      inMemory: true # Chạy trong RAM (mất dữ liệu khi tắt, tốt cho test)
-      heapInitial: 200m
-      heapMax: 1g
-      migrate: true # TỰ ĐỘNG TẠO BẢNG DỰA TRÊN KHỐI `resources:` CỦA BẠN
-      seed: true # (Tùy chọn) Tự động nạp dữ liệu test
-    # (Tùy chọn) Cấu hình nạp dữ liệu test
-    # seed:
-    #   default:
-    #     sources:
-    #       - table: ${self:provider.environment.DYNAMODB_TABLE}
-    #         sources: [./dynamodb-seed.json]
+      port: 8000
+      inMemory: true
+      migrate: true
+      seed: true

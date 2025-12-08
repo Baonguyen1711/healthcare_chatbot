@@ -10,7 +10,7 @@ export interface MedicalInfo {
   language: "vi" | "en";
   publishedDate: string;
   lastUpdated: string;
-  reliability: number; // 1-5 rating
+  reliability: number;
   views: number;
   isVerified: boolean;
   relatedTopics?: string[];
@@ -36,7 +36,7 @@ export enum MedicalCategory {
 export enum SourceType {
   WHO = "WHO",
   CDC = "CDC",
-  MOH_VN = "MOH_VN", // Bộ Y tế VN
+  MOH_VN = "MOH_VN",
   VERIFIED = "VERIFIED",
 }
 
@@ -47,4 +47,18 @@ export interface SearchQuery {
   language?: "vi" | "en";
   limit?: number;
   offset?: number;
+}
+
+export interface ExternalSource {
+  name: SourceType;
+  baseUrl: string;
+  apiKey?: string;
+  endpoints: {
+    search: string;
+    details: string;
+  };
+  rateLimit: {
+    requests: number;
+    period: number;
+  };
 }
