@@ -1,60 +1,54 @@
 import { APIGatewayProxyHandler } from "aws-lambda";
-import { MedicalInfoService } from "../services/medicalInfoService";
+import { ArticleService } from "../services/articleService";
 import { CacheService } from "../services/cacheService";
-import { MedicalCategory } from "../models/medicalInfo.model";
 import {
   formatSuccessResponse,
   formatErrorResponse,
 } from "../utils/responseFormatter";
-import { cacheConfig } from "../config/sources.config";
 
-const medicalInfoService = new MedicalInfoService();
+const articleService = new ArticleService();
 const cacheService = new CacheService();
 
 export const handler: APIGatewayProxyHandler = async (event) => {
   try {
-    const { category } = event.pathParameters || {};
+    const category = event.pathParameters?.category;
     const limit = event.queryStringParameters?.limit
       ? parseInt(event.queryStringParameters.limit)
       : 20;
 
-    if (
-      !category ||
-      !Object.values(MedicalCategory).includes(category as MedicalCategory)
-    ) {
-      return formatErrorResponse(400, "Invalid category");
+    if (!category) {
+      return formatErrorResponse(400, "Category is required");
     }
 
-    // Check cache
-    const cacheKey = `category:${category}:${limit}`;
+    const categoryNum = parseInt(category);
+    if (isNaN(categoryNum) || categoryNum < 1 || categoryNum > 4) {
+      return formatErrorResponse(400, "Invalid category (must be 1-4)");
+    }
+
+    const cacheKey = `category:${categoryNum}:${limit}`;
     const cached = await cacheService.get(cacheKey);
 
     if (cached) {
       return formatSuccessResponse({
-        category,
+        category: categoryNum,
         data: cached,
         total: cached.length,
         fromCache: true,
       });
     }
 
-    // Fetch from database
-    const results = await medicalInfoService.getByCategory(
-      category as MedicalCategory,
-      limit
-    );
+    const results = await articleService.getByCategory(categoryNum, limit);
 
-    // Cache results
-    await cacheService.set(cacheKey, results, cacheConfig.searchResultsTTL);
+    await cacheService.set(cacheKey, results, 3600); // 1 hour
 
     return formatSuccessResponse({
-      category,
+      category: categoryNum,
       data: results,
       total: results.length,
       fromCache: false,
     });
   } catch (error) {
-    console.error("Error:", error);
+    console.error("Get by category error:", error);
     return formatErrorResponse(500, "Internal server error");
   }
 };

@@ -1,50 +1,56 @@
 import { APIGatewayProxyHandler } from "aws-lambda";
-import { MedicalInfoService } from "../services/medicalInfoService";
+import { ArticleService } from "../services/articleService";
 import { CacheService } from "../services/cacheService";
-import { SearchQuery } from "../models/medicalInfo.model";
+import { SearchQuery } from "../models/article.model";
 import {
   formatSuccessResponse,
   formatErrorResponse,
 } from "../utils/responseFormatter";
-import { cacheConfig } from "../config/sources.config";
 
-const medicalInfoService = new MedicalInfoService();
+const articleService = new ArticleService();
 const cacheService = new CacheService();
 
 export const handler: APIGatewayProxyHandler = async (event) => {
   try {
     const queryParams = event.queryStringParameters || {};
 
+    const keyword = queryParams.keyword;
+    if (!keyword || keyword.trim().length === 0) {
+      return formatErrorResponse(400, "Keyword is required");
+    }
+
     const searchQuery: SearchQuery = {
-      keyword: queryParams.keyword,
-      category: queryParams.category as any,
+      keyword,
+      category: queryParams.category
+        ? parseInt(queryParams.category)
+        : undefined,
       source: queryParams.source as any,
-      language: queryParams.language as "vi" | "en",
       limit: queryParams.limit ? parseInt(queryParams.limit) : 20,
-      offset: queryParams.offset ? parseInt(queryParams.offset) : 0,
     };
 
-    // Generate cache key from search params
-    const cacheKey = cacheService.generateCacheKey("search", searchQuery);
+    // Check cache
+    const cacheKey = cacheService.generateKey("search", searchQuery);
     const cached = await cacheService.get(cacheKey);
 
     if (cached) {
       return formatSuccessResponse({
-        data: cached,
+        keyword,
         total: cached.length,
+        data: cached,
         fromCache: true,
       });
     }
 
-    // Perform search
-    const results = await medicalInfoService.search(searchQuery);
+    // Search database
+    const results = await articleService.search(searchQuery);
 
     // Cache results
-    await cacheService.set(cacheKey, results, cacheConfig.searchResultsTTL);
+    await cacheService.set(cacheKey, results, 3600); // 1 hour
 
     return formatSuccessResponse({
-      data: results,
+      keyword,
       total: results.length,
+      data: results,
       fromCache: false,
     });
   } catch (error) {

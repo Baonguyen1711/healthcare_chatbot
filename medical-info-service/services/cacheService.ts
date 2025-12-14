@@ -1,14 +1,14 @@
 import { DynamoDB } from "aws-sdk";
 
-const dynamoDB = new DynamoDB.DocumentClient();
-const cacheTableName = process.env.CACHE_TABLE!;
+const dynamo = new DynamoDB.DocumentClient();
+const CACHE_TABLE = process.env.CACHE_TABLE!;
 
 export class CacheService {
   async get(key: string): Promise<any | null> {
     try {
-      const result = await dynamoDB
+      const result = await dynamo
         .get({
-          TableName: cacheTableName,
+          TableName: CACHE_TABLE,
           Key: { key },
         })
         .promise();
@@ -31,9 +31,9 @@ export class CacheService {
   async set(key: string, value: any, ttlSeconds: number): Promise<void> {
     const ttl = Math.floor(Date.now() / 1000) + ttlSeconds;
 
-    await dynamoDB
+    await dynamo
       .put({
-        TableName: cacheTableName,
+        TableName: CACHE_TABLE,
         Item: {
           key,
           value: JSON.stringify(value),
@@ -44,19 +44,19 @@ export class CacheService {
   }
 
   async delete(key: string): Promise<void> {
-    await dynamoDB
+    await dynamo
       .delete({
-        TableName: cacheTableName,
+        TableName: CACHE_TABLE,
         Key: { key },
       })
       .promise();
   }
 
-  generateCacheKey(prefix: string, params: Record<string, any>): string {
-    const sortedParams = Object.keys(params)
+  generateKey(prefix: string, params: Record<string, any>): string {
+    const sorted = Object.keys(params)
       .sort()
       .map((k) => `${k}:${params[k]}`)
       .join("|");
-    return `${prefix}:${sortedParams}`;
+    return `${prefix}:${sorted}`;
   }
 }

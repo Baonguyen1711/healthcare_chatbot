@@ -1,13 +1,12 @@
 import { APIGatewayProxyHandler } from "aws-lambda";
-import { MedicalInfoService } from "../services/medicalInfoService";
+import { ArticleService } from "../services/articleService";
 import { CacheService } from "../services/cacheService";
 import {
   formatSuccessResponse,
   formatErrorResponse,
 } from "../utils/responseFormatter";
-import { cacheConfig } from "../config/sources.config";
 
-const medicalInfoService = new MedicalInfoService();
+const articleService = new ArticleService();
 const cacheService = new CacheService();
 
 export const handler: APIGatewayProxyHandler = async (event) => {
@@ -15,10 +14,10 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     const id = event.pathParameters?.id;
 
     if (!id) {
-      return formatErrorResponse(400, "Missing medical info ID");
+      return formatErrorResponse(400, "Article ID is required");
     }
 
-    const cacheKey = `medical-info:${id}`;
+    const cacheKey = `article:${id}`;
     const cached = await cacheService.get(cacheKey);
 
     if (cached) {
@@ -28,24 +27,20 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       });
     }
 
-    const medicalInfo = await medicalInfoService.getById(id);
+    const article = await articleService.getById(id);
 
-    if (!medicalInfo) {
-      return formatErrorResponse(404, "Medical information not found");
+    if (!article) {
+      return formatErrorResponse(404, "Article not found");
     }
 
-    await cacheService.set(
-      cacheKey,
-      medicalInfo,
-      cacheConfig.articleDetailsTTL
-    );
+    await cacheService.set(cacheKey, article, 86400); // 24 hours
 
     return formatSuccessResponse({
-      data: medicalInfo,
+      data: article,
       fromCache: false,
     });
   } catch (error) {
-    console.error("Error:", error);
+    console.error("Get article error:", error);
     return formatErrorResponse(500, "Internal server error");
   }
 };

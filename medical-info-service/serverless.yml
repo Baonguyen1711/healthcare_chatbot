@@ -1,13 +1,18 @@
 service: medical-info-service
 
+frameworkVersion: "4"
+
 provider:
   name: aws
   runtime: nodejs18.x
   region: us-east-1
   stage: ${opt:stage, 'dev'}
+
   environment:
     DYNAMODB_TABLE: ${self:service}-${self:provider.stage}
     CACHE_TABLE: ${self:service}-cache-${self:provider.stage}
+    GOOGLE_API_KEY: ${env:GOOGLE_API_KEY}
+
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -18,21 +23,97 @@ provider:
         - dynamodb:UpdateItem
         - dynamodb:DeleteItem
       Resource:
-        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}"
-        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.CACHE_TABLE}"
+        - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}
+        - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}/index/*
+        - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.CACHE_TABLE}
+
   httpApi:
     cors: true
 
+# ============================================
+# PLUGINS
+# ============================================
+plugins:
+  - serverless-offline
+
+# ============================================
+# PACKAGE CONFIG
+# ============================================
+package:
+  individually: true
+  patterns:
+    - "!node_modules/.bin/**"
+    - "!node_modules/**/*.md"
+    - "!node_modules/**/*.ts"
+    - "!node_modules/**/*.map"
+    - "!.git/**"
+    - "!.gitignore"
+    - "!tests/**"
+    - "!README.md"
+    - "!package-lock.json"
+
+# ============================================
+# FUNCTIONS
+# ============================================
 functions:
+  # CHATBOT API
+  chat:
+    handler: handlers/chat.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /chat
+          method: post
+
+  # ARTICLE EXTRACTION API
+  extractArticle:
+    handler: handlers/extractArticle.handler
+    timeout: 60
+    events:
+      - httpApi:
+          path: /articles/extract
+          method: post
+
+  # ARTICLE SEARCH APIs
+  searchArticles:
+    handler: handlers/searchArticles.handler
+    timeout: 30
+    events:
+      - httpApi:
+          path: /articles/search
+          method: get
+
+  getArticle:
+    handler: handlers/getArticle.handler
+    events:
+      - httpApi:
+          path: /articles/{id}
+          method: get
+
+  getByCategory:
+    handler: handlers/getByCategory.handler
+    events:
+      - httpApi:
+          path: /articles/category/{category}
+          method: get
+
+  getPopular:
+    handler: handlers/getPopular.handler
+    events:
+      - httpApi:
+          path: /articles/popular
+          method: get
+
+  # LEGACY APIs
   getMedicalInfo:
-    handler: handlers/getMedicalInfo.handler
+    handler: handlers/getArticle.handler
     events:
       - httpApi:
           path: /medical-info/{id}
           method: get
 
   searchMedicalInfo:
-    handler: handlers/searchMedicalInfo.handler
+    handler: handlers/searchArticles.handler
     timeout: 30
     events:
       - httpApi:
@@ -40,36 +121,33 @@ functions:
           method: get
 
   getInfoByCategory:
-    handler: handlers/getInfoByCategory.handler
+    handler: handlers/getByCategory.handler
     events:
       - httpApi:
           path: /medical-info/category/{category}
           method: get
 
-  syncExternalSources:
-    handler: handlers/syncExternalSources.handler
-    timeout: 300
-    events:
-      - schedule:
-          rate: cron(0 2 * * ? *)
-          description: "Sync medical info daily at 2 AM"
-
+# ============================================
+# RESOURCES (DYNAMODB)
+# ============================================
 resources:
   Resources:
-    MedicalInfoTable:
+    ArticlesTable:
       Type: AWS::DynamoDB::Table
       Properties:
         TableName: ${self:provider.environment.DYNAMODB_TABLE}
+        BillingMode: PAY_PER_REQUEST
+
         AttributeDefinitions:
           - AttributeName: id
             AttributeType: S
           - AttributeName: category
             AttributeType: S
-          - AttributeName: source
-            AttributeType: S
+
         KeySchema:
           - AttributeName: id
             KeyType: HASH
+
         GlobalSecondaryIndexes:
           - IndexName: CategoryIndex
             KeySchema:
@@ -77,49 +155,3 @@ resources:
                 KeyType: HASH
             Projection:
               ProjectionType: ALL
-            ProvisionedThroughput:
-              ReadCapacityUnits: 5
-              WriteCapacityUnits: 5
-          - IndexName: SourceIndex
-            KeySchema:
-              - AttributeName: source
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL
-            ProvisionedThroughput:
-              ReadCapacityUnits: 5
-              WriteCapacityUnits: 5
-        ProvisionedThroughput:
-          ReadCapacityUnits: 5
-          WriteCapacityUnits: 5
-
-    CacheTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: ${self:provider.environment.CACHE_TABLE}
-        AttributeDefinitions:
-          - AttributeName: key
-            AttributeType: S
-        KeySchema:
-          - AttributeName: key
-            KeyType: HASH
-        TimeToLiveSpecification:
-          AttributeName: ttl
-          Enabled: true
-        ProvisionedThroughput:
-          ReadCapacityUnits: 5
-          WriteCapacityUnits: 5
-
-plugins:
-  - serverless-dynamodb-local
-  - serverless-offline
-
-custom:
-  dynamodb:
-    stages:
-      - dev
-    start:
-      port: 8000
-      inMemory: true
-      migrate: true
-      seed: true
