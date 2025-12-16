@@ -12,6 +12,8 @@ provider:
     DYNAMODB_TABLE: ${self:service}-${self:provider.stage}
     CACHE_TABLE: ${self:service}-cache-${self:provider.stage}
     GOOGLE_API_KEY: ${env:GOOGLE_API_KEY}
+    LOG_LEVEL: ${env:LOG_LEVEL, 'info'}
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
 
   iamRoleStatements:
     - Effect: Allow
@@ -49,89 +51,191 @@ package:
     - "!.git/**"
     - "!.gitignore"
     - "!tests/**"
-    - "!README.md"
+    - "!test/**"
+    - "!*.md"
     - "!package-lock.json"
+    - "!tsconfig.json"
+    - "!.env*"
 
 # ============================================
-# FUNCTIONS
+# FUNCTIONS - IMPROVED VERSION
 # ============================================
 functions:
-  # CHATBOT API
+  # ==========================================
+  # CHATBOT API - IMPROVED
+  # ==========================================
   chat:
     handler: handlers/chat.handler
+    description: "AI chat endpoint with context-aware responses and source citations"
     timeout: 30
+    memorySize: 512
     events:
       - httpApi:
           path: /chat
           method: post
+    environment:
+      FUNCTION_NAME: chat
 
-  # ARTICLE EXTRACTION API
+  # ==========================================
+  # ARTICLE EXTRACTION & MANAGEMENT - IMPROVED
+  # ==========================================
+
+  # Extract article content from URL
   extractArticle:
     handler: handlers/extractArticle.handler
+    description: "Extract and process article content from WHO/CDC/MOH_VN URLs"
     timeout: 60
+    memorySize: 1024 # Increased for web scraping + AI processing
     events:
       - httpApi:
           path: /articles/extract
           method: post
+    environment:
+      FUNCTION_NAME: extractArticle
 
-  # ARTICLE SEARCH APIs
+  # Save extracted article to database (NEW - separate endpoint)
+  saveArticle:
+    handler: handlers/saveArticle.handler
+    description: "Save reviewed article to database"
+    timeout: 10
+    memorySize: 256
+    events:
+      - httpApi:
+          path: /articles/save
+          method: post
+    environment:
+      FUNCTION_NAME: saveArticle
+
+  # ==========================================
+  # ARTICLE QUERY APIs - IMPROVED
+  # ==========================================
+
+  # Search articles with keyword/category/source filters
   searchArticles:
     handler: handlers/searchArticles.handler
+    description: "Search articles with advanced filtering"
     timeout: 30
+    memorySize: 512
     events:
       - httpApi:
           path: /articles/search
           method: get
+    environment:
+      FUNCTION_NAME: searchArticles
 
+  # Get single article by ID
   getArticle:
     handler: handlers/getArticle.handler
+    description: "Get article by ID with view tracking"
+    timeout: 10
+    memorySize: 256
     events:
       - httpApi:
           path: /articles/{id}
           method: get
+    environment:
+      FUNCTION_NAME: getArticle
 
+  # Get articles by category
   getByCategory:
     handler: handlers/getByCategory.handler
+    description: "Get articles by category (1-4)"
+    timeout: 30
+    memorySize: 512
     events:
       - httpApi:
           path: /articles/category/{category}
           method: get
+    environment:
+      FUNCTION_NAME: getByCategory
 
+  # Get popular articles (NEW - most viewed)
   getPopular:
     handler: handlers/getPopular.handler
+    description: "Get most popular articles by views"
+    timeout: 10
+    memorySize: 512
     events:
       - httpApi:
           path: /articles/popular
           method: get
+    environment:
+      FUNCTION_NAME: getPopular
 
-  # LEGACY APIs
+  # List all articles with pagination (NEW)
+  listArticles:
+    handler: handlers/listArticles.handler
+    description: "List articles with filters and pagination"
+    timeout: 30
+    memorySize: 512
+    events:
+      - httpApi:
+          path: /articles
+          method: get
+    environment:
+      FUNCTION_NAME: listArticles
+
+  # Get system statistics (NEW)
+  getStatistics:
+    handler: handlers/getStatistics.handler
+    description: "Get system statistics (articles by source/category)"
+    timeout: 10
+    memorySize: 256
+    events:
+      - httpApi:
+          path: /statistics
+          method: get
+    environment:
+      FUNCTION_NAME: getStatistics
+
+  # ==========================================
+  # LEGACY APIs (Backward Compatibility)
+  # ==========================================
+
   getMedicalInfo:
     handler: handlers/getArticle.handler
+    description: "Legacy endpoint - Get article by ID"
+    timeout: 10
+    memorySize: 256
     events:
       - httpApi:
           path: /medical-info/{id}
           method: get
+    environment:
+      FUNCTION_NAME: getMedicalInfo
 
   searchMedicalInfo:
     handler: handlers/searchArticles.handler
+    description: "Legacy endpoint - Search articles"
     timeout: 30
+    memorySize: 512
     events:
       - httpApi:
           path: /medical-info/search
           method: get
+    environment:
+      FUNCTION_NAME: searchMedicalInfo
 
   getInfoByCategory:
     handler: handlers/getByCategory.handler
+    description: "Legacy endpoint - Get by category"
+    timeout: 30
+    memorySize: 512
     events:
       - httpApi:
           path: /medical-info/category/{category}
           method: get
+    environment:
+      FUNCTION_NAME: getInfoByCategory
 
 # ============================================
-# RESOURCES (DYNAMODB)
+# RESOURCES (DYNAMODB) - IMPROVED
 # ============================================
 resources:
   Resources:
+    # ==========================================
+    # Articles Table - FIXED & IMPROVED
+    # ==========================================
     ArticlesTable:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -142,7 +246,9 @@ resources:
           - AttributeName: id
             AttributeType: S
           - AttributeName: category
-            AttributeType: S
+            AttributeType: N # ✅ FIXED: Changed from S to N (category is number 1-4)
+          - AttributeName: createdAt
+            AttributeType: S # ✅ ADDED: For sorting in CategoryIndex
 
         KeySchema:
           - AttributeName: id
@@ -153,5 +259,79 @@ resources:
             KeySchema:
               - AttributeName: category
                 KeyType: HASH
+              - AttributeName: createdAt # ✅ ADDED: Sort key for better queries
+                KeyType: RANGE
             Projection:
               ProjectionType: ALL
+
+        # ✅ ADDED: Stream for potential future use (analytics, etc.)
+        StreamSpecification:
+          StreamViewType: NEW_AND_OLD_IMAGES
+
+        # ✅ ADDED: Tags for better resource management
+        Tags:
+          - Key: Environment
+            Value: ${self:provider.stage}
+          - Key: Service
+            Value: ${self:service}
+          - Key: ManagedBy
+            Value: Serverless
+
+    # ==========================================
+    # Cache Table - IMPROVED
+    # ==========================================
+    CacheTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.CACHE_TABLE}
+        BillingMode: PAY_PER_REQUEST
+
+        AttributeDefinitions:
+          - AttributeName: key
+            AttributeType: S
+
+        KeySchema:
+          - AttributeName: key
+            KeyType: HASH
+
+        # ✅ TTL enabled for automatic cache expiration
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true
+
+        Tags:
+          - Key: Environment
+            Value: ${self:provider.stage}
+          - Key: Service
+            Value: ${self:service}
+          - Key: Purpose
+            Value: Cache
+          - Key: ManagedBy
+            Value: Serverless
+
+# ============================================
+# CUSTOM CONFIG
+# ============================================
+custom:
+  # Serverless Offline Configuration
+  serverless-offline:
+    httpPort: 3000
+    lambdaPort: 3002
+    printOutput: true
+
+# ============================================
+# OUTPUTS (Optional - for easy reference)
+# ============================================
+outputs:
+  ApiEndpoint:
+    Description: "API Gateway endpoint URL"
+    Value:
+      Fn::Sub: "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+
+  ArticlesTableName:
+    Description: "Articles DynamoDB Table Name"
+    Value: ${self:provider.environment.DYNAMODB_TABLE}
+
+  CacheTableName:
+    Description: "Cache DynamoDB Table Name"
+    Value: ${self:provider.environment.CACHE_TABLE}

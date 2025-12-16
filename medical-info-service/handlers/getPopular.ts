@@ -1,42 +1,37 @@
+// handlers/getPopular.ts
 import { APIGatewayProxyHandler } from "aws-lambda";
 import { ArticleService } from "../services/articleService";
-import { CacheService } from "../services/cacheService";
 import {
   formatSuccessResponse,
   formatErrorResponse,
 } from "../utils/responseFormatter";
 
 const articleService = new ArticleService();
-const cacheService = new CacheService();
 
 export const handler: APIGatewayProxyHandler = async (event) => {
+  console.log("⭐ Get popular articles request received");
+
   try {
-    const limit = event.queryStringParameters?.limit
-      ? parseInt(event.queryStringParameters.limit)
-      : 10;
+    const queryParams = event.queryStringParameters || {};
+    const limit = queryParams.limit ? parseInt(queryParams.limit) : 10;
 
-    const cacheKey = `popular:${limit}`;
-    const cached = await cacheService.get(cacheKey);
-
-    if (cached) {
-      return formatSuccessResponse({
-        data: cached,
-        total: cached.length,
-        fromCache: true,
-      });
+    if (limit < 1 || limit > 100) {
+      return formatErrorResponse(400, "Limit must be between 1 and 100");
     }
 
-    const results = await articleService.getPopular(limit);
+    console.log(`Fetching top ${limit} popular articles`);
 
-    await cacheService.set(cacheKey, results, 7200); // 2 hours
+    const articles = await articleService.getPopular(limit);
+
+    console.log(`✅ Found ${articles.length} popular articles`);
 
     return formatSuccessResponse({
-      data: results,
-      total: results.length,
-      fromCache: false,
+      articles,
+      total: articles.length,
+      limit,
     });
   } catch (error) {
-    console.error("Get popular error:", error);
+    console.error("❌ Get popular error:", error);
     return formatErrorResponse(500, "Internal server error");
   }
 };
