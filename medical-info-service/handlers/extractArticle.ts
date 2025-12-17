@@ -1,6 +1,6 @@
 // handlers/extractArticle.ts - IMPROVED VERSION
 import { APIGatewayProxyHandler } from "aws-lambda";
-import { AIService } from "../services/aiService";
+import { ExtractService } from "../services/extractService";
 import { ArticleService } from "../services/articleService";
 import {
   formatSuccessResponse,
@@ -8,7 +8,7 @@ import {
 } from "../utils/responseFormatter";
 import { validateSourceUrl, determineCategory } from "../utils/categoryHelper";
 
-const aiService = new AIService();
+const extractService = new ExtractService();
 const articleService = new ArticleService();
 
 export const handler: APIGatewayProxyHandler = async (event) => {
@@ -50,7 +50,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     // Extract article content
     console.log("🔍 Step 1: Extracting article content...");
-    const extractedData = await aiService.extractArticle(body.url);
+    const extractedData = await extractService.extractArticle(body.url);
 
     if (!extractedData) {
       console.error("❌ Failed to extract article data");
@@ -66,7 +66,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
     // Generate keywords
     console.log("🏷️ Step 2: Generating keywords...");
-    const keywords = await aiService.generateKeywords(
+    const keywords = await extractService.generateKeywords(
       extractedData.title,
       extractedData.content
     );

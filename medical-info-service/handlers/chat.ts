@@ -1,6 +1,6 @@
 // handlers/chat.ts - IMPROVED VERSION
 import { APIGatewayProxyHandler } from "aws-lambda";
-import { AIService } from "../services/aiService";
+import { AIService } from "../services/chatService";
 import { ArticleService } from "../services/articleService";
 import { ChatRequest } from "../models/chat.model";
 import {
