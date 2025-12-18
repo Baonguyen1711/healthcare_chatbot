@@ -1,16 +1,19 @@
-export interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
-}
+// models/chat.model.ts
+// Data interfaces for Medical Chat feature
 
+/**
+ * Request DTO for medical chat
+ */
 export interface ChatRequest {
   message: string;
   conversationId?: string;
-  history?: ChatMessage[];
 }
 
+/**
+ * Response DTO for medical chat
+ * Only contains answer text - no sources, no metadata
+ */
 export interface ChatResponse {
-  response: string;
+  answer: string;
   conversationId: string;
-  timestamp: string;
 }
