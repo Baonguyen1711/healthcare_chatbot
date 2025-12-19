@@ -113,27 +113,25 @@ export class ArticleService {
       console.log(`   DynamoDB returned ${articles.length} articles`);
 
       // ===== Keyword search =====
-      if (query.keyword) {
+      if (query.keyword?.trim()) {
         const normalizedKeyword = this.normalizeSearchText(query.keyword);
         const searchTerms = normalizedKeyword
           .split(/\s+/)
           .filter((t) => t.length >= 2);
 
-        console.log("   Search terms:", searchTerms);
+        if (searchTerms.length > 0) {
+          articles = articles.filter((article) => {
+            const normalizedTitle = this.normalizeSearchText(article.title);
+            const normalizedContent = this.normalizeSearchText(article.content);
+            const normalizedKeywords = (article.keywords || [])
+              .map((k) => this.normalizeSearchText(k))
+              .join(" ");
 
-        articles = articles.filter((article) => {
-          const normalizedTitle = this.normalizeSearchText(article.title);
-          const normalizedContent = this.normalizeSearchText(article.content);
-          const normalizedKeywords = (article.keywords || [])
-            .map((k) => this.normalizeSearchText(k))
-            .join(" ");
+            const searchableText = `${normalizedTitle} ${normalizedContent} ${normalizedKeywords}`;
 
-          const searchableText = `${normalizedTitle} ${normalizedContent} ${normalizedKeywords}`;
-
-          return searchTerms.some((term) => searchableText.includes(term));
-        });
-
-        console.log(`   After keyword filter: ${articles.length} articles`);
+            return searchTerms.some((term) => searchableText.includes(term));
+          });
+        }
       }
 
       // ===== Sort giảm dần theo views =====
@@ -163,6 +161,29 @@ export class ArticleService {
         .promise();
     } catch (error) {
       console.error("Increment views error:", error);
+    }
+  }
+
+  async existsByUrl(url: string): Promise<boolean> {
+    try {
+      const result = await dynamo
+        .scan({
+          TableName: TABLE,
+          FilterExpression: "#url = :url",
+          ExpressionAttributeNames: {
+            "#url": "url",
+          },
+          ExpressionAttributeValues: {
+            ":url": url,
+          },
+          Limit: 1,
+        })
+        .promise();
+
+      return !!(result.Items && result.Items.length > 0);
+    } catch (error) {
+      console.error("existsByUrl error:", error);
+      return false;
     }
   }
 }

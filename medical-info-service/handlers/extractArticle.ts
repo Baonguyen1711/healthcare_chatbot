@@ -88,20 +88,24 @@ export const handler: APIGatewayProxyHandler = async (event) => {
       }`
     );
 
+    // Generate emoji - AI tự chọn
+    console.log("😊 Step 3.5: Generating emoji...");
+    const emoji = await extractService.generateEmoji(
+      extractedData.title,
+      extractedData.content,
+      category
+    );
+    console.log(`   Emoji: ${emoji}`);
+
     // Option to save to database
     let savedArticle = null;
     if (body.saveToDatabase === true) {
       console.log("💾 Step 4: Saving to database...");
       try {
-        // Check if article already exists
-        const existingArticles = await articleService.search({
-          keyword: extractedData.title,
-          limit: 1,
-        });
+        const exists = await articleService.existsByUrl(body.url);
 
-        if (existingArticles.length > 0) {
-          console.log("⚠️ Article already exists in database");
-          savedArticle = existingArticles[0];
+        if (exists) {
+          console.log("⚠️ Article already exists (by URL)");
         } else {
           savedArticle = await articleService.create({
             title: extractedData.title,
@@ -110,6 +114,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             category,
             url: body.url,
             keywords,
+            emoji,
           });
           console.log(`✅ Saved to database with ID: ${savedArticle.id}`);
         }
@@ -134,6 +139,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
           categoryNames[category as keyof typeof categoryNames] || "Unknown",
         url: body.url,
         keywords,
+        emoji,
         contentLength: extractedData.content.length,
         wordCount: extractedData.content.split(/\s+/).length,
       },

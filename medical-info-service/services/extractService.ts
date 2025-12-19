@@ -230,6 +230,76 @@ Keywords:`;
     }
   }
 
+  /**
+   * Generate appropriate emoji for article - AI decides freely
+   */
+  async generateEmoji(
+    title: string,
+    content: string,
+    category: number
+  ): Promise<string> {
+    try {
+      const categoryNames = {
+        1: "Phòng ngừa (Prevention)",
+        2: "Dinh dưỡng (Nutrition)",
+        3: "Sức khỏe tâm thần (Mental Health)",
+        4: "Khác (Other Medical)",
+      };
+
+      const prompt = `You are an emoji selection expert. Choose the SINGLE most appropriate emoji for this medical/health article.
+
+Title: ${title}
+Content preview: ${content.substring(0, 600)}
+Category: ${categoryNames[category as keyof typeof categoryNames]}
+
+Instructions:
+- Analyze the article's main topic and message
+- Return ONLY ONE emoji that best represents the content
+- Choose from ANY relevant emoji (medical, health, food, mental health, science, etc.)
+- The emoji should be immediately recognizable and relevant
+- Consider cultural appropriateness
+
+Examples of good choices:
+- Vaccine article → 💉
+- Nutrition/diet → 🥗 or specific food
+- Mental health → 🧠 or 💭 or 😌
+- Disease/virus → 🦠
+- Exercise → 💪 or 🏃
+- Sleep → 😴 or 🛌
+- Heart health → ❤️
+- Children health → 👶 or 🧒
+- Elderly care → 👴 or 👵
+- Medicine → 💊
+- Hospital → 🏥
+
+Return ONLY the emoji character, nothing else:`;
+
+      const result = await this.model.generateContent(prompt);
+      const emojiText = result.response.text().trim();
+
+      // Extract just the emoji (remove any extra text)
+      const emojiMatch = emojiText.match(/\p{Emoji}/u);
+      const emoji = emojiMatch ? emojiMatch[0] : null;
+
+      // Validate it's actually an emoji
+      if (emoji && emoji.length <= 4) {
+        console.log(`😊 AI selected emoji: ${emoji}`);
+        return emoji;
+      }
+
+      // Smart fallback based on category if AI fails
+      const fallbacks = { 1: "💉", 2: "🥗", 3: "🧠", 4: "🏥" };
+      const fallbackEmoji =
+        fallbacks[category as keyof typeof fallbacks] || "📋";
+      console.log(`⚠️ Using fallback emoji: ${fallbackEmoji}`);
+      return fallbackEmoji;
+    } catch (error) {
+      console.error("❌ Generate emoji error:", error);
+      const fallbacks = { 1: "💉", 2: "🥗", 3: "🧠", 4: "🏥" };
+      return fallbacks[category as keyof typeof fallbacks] || "📋";
+    }
+  }
+
   private async getCache(key: string): Promise<any | null> {
     try {
       const result = await dynamo

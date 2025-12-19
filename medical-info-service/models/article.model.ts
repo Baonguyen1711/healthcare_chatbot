@@ -8,6 +8,7 @@ export interface Article {
   keywords: string[];
   createdAt: string;
   views: number;
+  emoji: string;
 }
 
 export interface SearchQuery {
