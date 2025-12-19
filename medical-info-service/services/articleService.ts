@@ -101,7 +101,10 @@ export class ArticleService {
       if (filterExpressions.length > 0) {
         params.FilterExpression = filterExpressions.join(" AND ");
         params.ExpressionAttributeValues = expressionValues;
-        params.ExpressionAttributeNames = expressionNames;
+
+        if (Object.keys(expressionNames).length > 0) {
+          params.ExpressionAttributeNames = expressionNames;
+        }
       }
 
       console.log("   DynamoDB Filter:", params.FilterExpression);
