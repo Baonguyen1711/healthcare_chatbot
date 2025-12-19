@@ -1,6 +1,3 @@
-// handlers/chat.ts
-// Lambda Handler for Medical Chat endpoint
-
 import { APIGatewayProxyHandler } from "aws-lambda";
 import { ChatService } from "../services/chatService";
 import { ChatRequest, ChatResponse } from "../models/chat.model";

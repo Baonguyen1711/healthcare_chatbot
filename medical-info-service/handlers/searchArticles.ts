@@ -44,6 +44,8 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     // Search database
     const results = await articleService.search(searchQuery);
 
+    console.log(results);
+
     // Cache results
     await cacheService.set(cacheKey, results, 3600); // 1 hour
 

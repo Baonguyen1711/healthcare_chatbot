@@ -1,7 +1,3 @@
-// services/chatService.ts
-// Business Logic for Medical Chat - Google Gemini AI
-// Production-ready with: Anti-Prompt Injection, Emergency Detection, Safety Settings
-
 import {
   GoogleGenerativeAI,
   HarmCategory,
@@ -17,18 +13,72 @@ const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || "");
  * ============================================
  */
 const VIETNAMESE_MAP: Record<string, string> = {
-  à: "a", á: "a", ả: "a", ã: "a", ạ: "a",
-  ă: "a", ằ: "a", ắ: "a", ẳ: "a", ẵ: "a", ặ: "a",
-  â: "a", ầ: "a", ấ: "a", ẩ: "a", ẫ: "a", ậ: "a",
-  è: "e", é: "e", ẻ: "e", ẽ: "e", ẹ: "e",
-  ê: "e", ề: "e", ế: "e", ể: "e", ễ: "e", ệ: "e",
-  ì: "i", í: "i", ỉ: "i", ĩ: "i", ị: "i",
-  ò: "o", ó: "o", ỏ: "o", õ: "o", ọ: "o",
-  ô: "o", ồ: "o", ố: "o", ổ: "o", ỗ: "o", ộ: "o",
-  ơ: "o", ờ: "o", ớ: "o", ở: "o", ỡ: "o", ợ: "o",
-  ù: "u", ú: "u", ủ: "u", ũ: "u", ụ: "u",
-  ư: "u", ừ: "u", ứ: "u", ử: "u", ữ: "u", ự: "u",
-  ỳ: "y", ý: "y", ỷ: "y", ỹ: "y", ỵ: "y",
+  à: "a",
+  á: "a",
+  ả: "a",
+  ã: "a",
+  ạ: "a",
+  ă: "a",
+  ằ: "a",
+  ắ: "a",
+  ẳ: "a",
+  ẵ: "a",
+  ặ: "a",
+  â: "a",
+  ầ: "a",
+  ấ: "a",
+  ẩ: "a",
+  ẫ: "a",
+  ậ: "a",
+  è: "e",
+  é: "e",
+  ẻ: "e",
+  ẽ: "e",
+  ẹ: "e",
+  ê: "e",
+  ề: "e",
+  ế: "e",
+  ể: "e",
+  ễ: "e",
+  ệ: "e",
+  ì: "i",
+  í: "i",
+  ỉ: "i",
+  ĩ: "i",
+  ị: "i",
+  ò: "o",
+  ó: "o",
+  ỏ: "o",
+  õ: "o",
+  ọ: "o",
+  ô: "o",
+  ồ: "o",
+  ố: "o",
+  ổ: "o",
+  ỗ: "o",
+  ộ: "o",
+  ơ: "o",
+  ờ: "o",
+  ớ: "o",
+  ở: "o",
+  ỡ: "o",
+  ợ: "o",
+  ù: "u",
+  ú: "u",
+  ủ: "u",
+  ũ: "u",
+  ụ: "u",
+  ư: "u",
+  ừ: "u",
+  ứ: "u",
+  ử: "u",
+  ữ: "u",
+  ự: "u",
+  ỳ: "y",
+  ý: "y",
+  ỷ: "y",
+  ỹ: "y",
+  ỵ: "y",
   đ: "d",
 };
 
@@ -72,12 +122,23 @@ const SAFETY_SETTINGS = [
  */
 const CRITICAL_EMERGENCY = [
   // Tự tử / Tự hại (LUÔN LUÔN khẩn cấp)
-  "tự tử", "muốn chết", "không muốn sống", "kết thúc cuộc sống", "tự sát",
-  "suicide", "kill myself", "want to die", "end my life",
+  "tự tử",
+  "muốn chết",
+  "không muốn sống",
+  "kết thúc cuộc sống",
+  "tự sát",
+  "suicide",
+  "kill myself",
+  "want to die",
+  "end my life",
   // Ngừng tim/thở
-  "ngừng tim", "ngừng thở", "không thở được", "cardiac arrest",
+  "ngừng tim",
+  "ngừng thở",
+  "không thở được",
+  "cardiac arrest",
   // Ngộ độc cấp
-  "uống thuốc quá liều", "overdose",
+  "uống thuốc quá liều",
+  "overdose",
 ];
 
 const URGENT_PATTERNS = [
@@ -97,9 +158,23 @@ const URGENT_PATTERNS = [
 
 // Các từ khóa cho thấy đây là câu hỏi TÌM HIỂU, không phải khẩn cấp
 const LEARNING_INDICATORS = [
-  "là gì", "như thế nào", "làm sao", "cách", "dấu hiệu", "triệu chứng",
-  "phòng ngừa", "phòng tránh", "nguyên nhân", "điều trị", "nhận biết",
-  "what is", "how to", "symptoms", "signs", "prevent", "cause",
+  "là gì",
+  "như thế nào",
+  "làm sao",
+  "cách",
+  "dấu hiệu",
+  "triệu chứng",
+  "phòng ngừa",
+  "phòng tránh",
+  "nguyên nhân",
+  "điều trị",
+  "nhận biết",
+  "what is",
+  "how to",
+  "symptoms",
+  "signs",
+  "prevent",
+  "cause",
 ];
 
 /**
@@ -258,7 +333,10 @@ Trả lời câu hỏi y tế trong <user_query>. Trích dẫn nguồn WHO/CDC/B
         containsKeyword(kw)
       );
 
-      if (pattern.require === "all" && matches.length === pattern.keywords.length) {
+      if (
+        pattern.require === "all" &&
+        matches.length === pattern.keywords.length
+      ) {
         return true;
       }
       if (pattern.require === "any" && matches.length > 0) {
@@ -273,10 +351,7 @@ Trả lời câu hỏi y tế trong <user_query>. Trích dẫn nguồn WHO/CDC/B
    * Sanitize input - loại bỏ các ký tự nguy hiểm
    */
   private sanitizeInput(input: string): string {
-    return input
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .substring(0, 1000); // Giới hạn độ dài
+    return input.replace(/</g, "&lt;").replace(/>/g, "&gt;").substring(0, 1000); // Giới hạn độ dài
   }
 
   /**

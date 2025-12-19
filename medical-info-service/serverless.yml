@@ -32,15 +32,9 @@ provider:
   httpApi:
     cors: true
 
-# ============================================
-# PLUGINS
-# ============================================
 plugins:
   - serverless-offline
 
-# ============================================
-# PACKAGE CONFIG
-# ============================================
 package:
   individually: true
   patterns:
@@ -57,13 +51,7 @@ package:
     - "!tsconfig.json"
     - "!.env*"
 
-# ============================================
-# FUNCTIONS - IMPROVED VERSION
-# ============================================
 functions:
-  # ==========================================
-  # CHATBOT API - IMPROVED
-  # ==========================================
   chat:
     handler: handlers/chat.handler
     description: "Medical Q&A chatbot - answers based on WHO, CDC, MOH sources only"
@@ -76,16 +64,11 @@ functions:
     environment:
       FUNCTION_NAME: chat
 
-  # ==========================================
-  # ARTICLE EXTRACTION & MANAGEMENT - IMPROVED
-  # ==========================================
-
-  # Extract article content from URL
   extractArticle:
     handler: handlers/extractArticle.handler
     description: "Extract and process article content from WHO/CDC/MOH_VN URLs"
     timeout: 60
-    memorySize: 1024 # Increased for web scraping + AI processing
+    memorySize: 1024
     events:
       - httpApi:
           path: /articles/extract
@@ -93,24 +76,6 @@ functions:
     environment:
       FUNCTION_NAME: extractArticle
 
-  # Save extracted article to database (NEW - separate endpoint)
-  saveArticle:
-    handler: handlers/saveArticle.handler
-    description: "Save reviewed article to database"
-    timeout: 10
-    memorySize: 256
-    events:
-      - httpApi:
-          path: /articles/save
-          method: post
-    environment:
-      FUNCTION_NAME: saveArticle
-
-  # ==========================================
-  # ARTICLE QUERY APIs - IMPROVED
-  # ==========================================
-
-  # Search articles with keyword/category/source filters
   searchArticles:
     handler: handlers/searchArticles.handler
     description: "Search articles with advanced filtering"
@@ -123,7 +88,6 @@ functions:
     environment:
       FUNCTION_NAME: searchArticles
 
-  # Get single article by ID
   getArticle:
     handler: handlers/getArticle.handler
     description: "Get article by ID with view tracking"
@@ -136,33 +100,6 @@ functions:
     environment:
       FUNCTION_NAME: getArticle
 
-  # Get articles by category
-  getByCategory:
-    handler: handlers/getByCategory.handler
-    description: "Get articles by category (1-4)"
-    timeout: 30
-    memorySize: 512
-    events:
-      - httpApi:
-          path: /articles/category/{category}
-          method: get
-    environment:
-      FUNCTION_NAME: getByCategory
-
-  # Get popular articles (NEW - most viewed)
-  getPopular:
-    handler: handlers/getPopular.handler
-    description: "Get most popular articles by views"
-    timeout: 10
-    memorySize: 512
-    events:
-      - httpApi:
-          path: /articles/popular
-          method: get
-    environment:
-      FUNCTION_NAME: getPopular
-
-  # List all articles with pagination (NEW)
   listArticles:
     handler: handlers/listArticles.handler
     description: "List articles with filters and pagination"
@@ -175,67 +112,8 @@ functions:
     environment:
       FUNCTION_NAME: listArticles
 
-  # Get system statistics (NEW)
-  getStatistics:
-    handler: handlers/getStatistics.handler
-    description: "Get system statistics (articles by source/category)"
-    timeout: 10
-    memorySize: 256
-    events:
-      - httpApi:
-          path: /statistics
-          method: get
-    environment:
-      FUNCTION_NAME: getStatistics
-
-  # ==========================================
-  # LEGACY APIs (Backward Compatibility)
-  # ==========================================
-
-  getMedicalInfo:
-    handler: handlers/getArticle.handler
-    description: "Legacy endpoint - Get article by ID"
-    timeout: 10
-    memorySize: 256
-    events:
-      - httpApi:
-          path: /medical-info/{id}
-          method: get
-    environment:
-      FUNCTION_NAME: getMedicalInfo
-
-  searchMedicalInfo:
-    handler: handlers/searchArticles.handler
-    description: "Legacy endpoint - Search articles"
-    timeout: 30
-    memorySize: 512
-    events:
-      - httpApi:
-          path: /medical-info/search
-          method: get
-    environment:
-      FUNCTION_NAME: searchMedicalInfo
-
-  getInfoByCategory:
-    handler: handlers/getByCategory.handler
-    description: "Legacy endpoint - Get by category"
-    timeout: 30
-    memorySize: 512
-    events:
-      - httpApi:
-          path: /medical-info/category/{category}
-          method: get
-    environment:
-      FUNCTION_NAME: getInfoByCategory
-
-# ============================================
-# RESOURCES (DYNAMODB) - IMPROVED
-# ============================================
 resources:
   Resources:
-    # ==========================================
-    # Articles Table - FIXED & IMPROVED
-    # ==========================================
     ArticlesTable:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -246,9 +124,9 @@ resources:
           - AttributeName: id
             AttributeType: S
           - AttributeName: category
-            AttributeType: N # ✅ FIXED: Changed from S to N (category is number 1-4)
+            AttributeType: S
           - AttributeName: createdAt
-            AttributeType: S # ✅ ADDED: For sorting in CategoryIndex
+            AttributeType: S
 
         KeySchema:
           - AttributeName: id
@@ -259,16 +137,14 @@ resources:
             KeySchema:
               - AttributeName: category
                 KeyType: HASH
-              - AttributeName: createdAt # ✅ ADDED: Sort key for better queries
+              - AttributeName: createdAt
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL
 
-        # ✅ ADDED: Stream for potential future use (analytics, etc.)
         StreamSpecification:
           StreamViewType: NEW_AND_OLD_IMAGES
 
-        # ✅ ADDED: Tags for better resource management
         Tags:
           - Key: Environment
             Value: ${self:provider.stage}
@@ -277,9 +153,6 @@ resources:
           - Key: ManagedBy
             Value: Serverless
 
-    # ==========================================
-    # Cache Table - IMPROVED
-    # ==========================================
     CacheTable:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -294,7 +167,6 @@ resources:
           - AttributeName: key
             KeyType: HASH
 
-        # ✅ TTL enabled for automatic cache expiration
         TimeToLiveSpecification:
           AttributeName: ttl
           Enabled: true
@@ -309,19 +181,6 @@ resources:
           - Key: ManagedBy
             Value: Serverless
 
-# ============================================
-# CUSTOM CONFIG
-# ============================================
-custom:
-  # Serverless Offline Configuration
-  serverless-offline:
-    httpPort: 3000
-    lambdaPort: 3002
-    printOutput: true
-
-# ============================================
-# OUTPUTS (Optional - for easy reference)
-# ============================================
 outputs:
   ApiEndpoint:
     Description: "API Gateway endpoint URL"

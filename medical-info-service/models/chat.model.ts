@@ -1,6 +1,3 @@
-// models/chat.model.ts
-// Data interfaces for Medical Chat feature
-
 /**
  * Request DTO for medical chat
  */

@@ -1,4 +1,3 @@
-// handlers/extractArticle.ts - IMPROVED VERSION
 import { APIGatewayProxyHandler } from "aws-lambda";
 import { ExtractService } from "../services/extractService";
 import { ArticleService } from "../services/articleService";

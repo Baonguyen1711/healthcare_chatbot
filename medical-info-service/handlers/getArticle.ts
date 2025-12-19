@@ -1,4 +1,3 @@
-// handlers/getArticle.ts
 import { APIGatewayProxyHandler } from "aws-lambda";
 import { ArticleService } from "../services/articleService";
 import {
