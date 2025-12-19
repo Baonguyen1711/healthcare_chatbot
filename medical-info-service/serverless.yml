@@ -35,6 +35,13 @@ provider:
 plugins:
   - serverless-offline
 
+build:
+  esbuild:
+    bundle: true
+    target: node18
+    external:
+      - undici
+
 package:
   individually: true
   patterns:
