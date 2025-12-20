@@ -24,13 +24,22 @@ provider:
       Resource:
         - !GetAtt HospitalBillsTable.Arn
 
+  httpApi:
+    cors: true
+
+package:
+  include:
+    - ../shared/**
+  exclude:
+    - node_modules/**
+
 functions:
-  # Lấy lần khám gần nhất của 1 user
+  # Lấy lần khám gần nhất của user đang đăng nhập
   getLatestBill:
     handler: src/handlers/getLatestBill.handler
     events:
       - httpApi:
-          path: /billing/latest/{userId}
+          path: /billing/latest
           method: get
 
   # Lấy 1 hóa đơn cụ thể theo userId + visitId

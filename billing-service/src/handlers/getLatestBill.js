@@ -1,3 +1,5 @@
+const { withAuth, formatResponse } = require("../utils/auth");
+
 const MOCK_BILLS = [
   {
     userId: "U001",
@@ -48,65 +50,49 @@ const MOCK_BILLS = [
   },
 ];
 
-module.exports.handler = async (event) => {
+// Handler chính - nhận userId từ JWT token qua withAuth wrapper
+const getLatestBillHandler = async (event, userId) => {
   console.log("Event:", JSON.stringify(event));
+  console.log("UserId from JWT:", userId);
 
   try {
-    const { userId } = event.pathParameters || {};
-
-    if (!userId) {
-      return {
-        statusCode: 400,
-        headers: { "Access-Control-Allow-Origin": "*" },
-        body: JSON.stringify({ message: "Missing userId" }),
-      };
-    }
-
     // Lọc tất cả hoá đơn của user
     const billsOfUser = MOCK_BILLS.filter((b) => b.userId === userId);
 
     if (!billsOfUser.length) {
-      return {
-        statusCode: 404,
-        headers: { "Access-Control-Allow-Origin": "*" },
-        body: JSON.stringify({
-          message:
-            "Không tìm thấy dữ liệu viện phí cho user này (demo, mock data).",
-        }),
-      };
+      return formatResponse(404, {
+        message:
+          "Không tìm thấy dữ liệu viện phí cho user này (demo, mock data).",
+      });
     }
 
+    // Sắp xếp theo ngày khám, lấy lần mới nhất
     billsOfUser.sort((a, b) => (a.visitDate < b.visitDate ? 1 : -1));
     const bill = billsOfUser[0];
 
-    return {
-      statusCode: 200,
-      headers: { "Access-Control-Allow-Origin": "*" },
-      body: JSON.stringify({
-        userId: bill.userId,
-        visitId: bill.visitId,
-        visitDate: bill.visitDate,
-        hospitalName: bill.hospitalName,
-        services: bill.services,
-        totalBasePrice: bill.totalBasePrice,
-        totalInsuranceCovered: bill.totalInsuranceCovered,
-        totalPatientPay: bill.totalPatientPay,
-        insuranceType: bill.insuranceType,
-        note: bill.note,
-      }),
-    };
+    return formatResponse(200, {
+      userId: bill.userId,
+      visitId: bill.visitId,
+      visitDate: bill.visitDate,
+      hospitalName: bill.hospitalName,
+      services: bill.services,
+      totalBasePrice: bill.totalBasePrice,
+      totalInsuranceCovered: bill.totalInsuranceCovered,
+      totalPatientPay: bill.totalPatientPay,
+      insuranceType: bill.insuranceType,
+      note: bill.note,
+    });
   } catch (err) {
     console.error("Error getLatestBill (mock):", err);
-    return {
-      statusCode: 500,
-      headers: { "Access-Control-Allow-Origin": "*" },
-      body: JSON.stringify({
-        message: "Internal server error",
-        error: err.message,
-      }),
-    };
+    return formatResponse(500, {
+      message: "Internal server error",
+      error: err.message,
+    });
   }
 };
+
+// Export handler với authentication wrapper
+module.exports.handler = withAuth(getLatestBillHandler);
 
 // const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 // const {
