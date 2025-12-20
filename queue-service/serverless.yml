@@ -10,30 +10,31 @@ plugins:
 provider:
     name: aws
     runtime: nodejs20.x
-    region: ap-southeast-1
-    stage: dev
-
+    region: us-east-1
+    stage: ${opt:stage, 'dev'}
     environment:
-        AWS_REGION: ap-southeast-1
-        QUEUES_TABLE: Queues
-        TICKETS_TABLE: Tickets
-        PATIENTS_TABLE: Patients
-        OTP_TABLE: OtpRequests
+        QUEUES_TABLE: ${self:service}-${self:provider.stage}-Queues
+        TICKETS_TABLE: ${self:service}-${self:provider.stage}-Tickets
+        PATIENTS_TABLE: ${self:service}-${self:provider.stage}-Patients
+        STAGE: ${self:provider.stage}
 
-    iamRoleStatements:
-        - Effect: Allow
-          Action:
-              - dynamodb:GetItem
-              - dynamodb:PutItem
-              - dynamodb:UpdateItem
-              - dynamodb:Query
-          Resource:
-              - arn:aws:dynamodb:ap-southeast-1:*:table/Queues
-              - arn:aws:dynamodb:ap-southeast-1:*:table/Tickets
-              - arn:aws:dynamodb:ap-southeast-1:*:table/Patients
-              - arn:aws:dynamodb:ap-southeast-1:*:table/OtpRequests
+    iam:
+        role:
+            statements:
+                - Effect: Allow
+                  Action:
+                      - dynamodb:GetItem
+                      - dynamodb:PutItem
+                      - dynamodb:UpdateItem
+                      - dynamodb:Query
+                      - dynamodb:DeleteItem
+                      - dynamodb:Scan
+                  Resource:
+                      - !GetAtt QueuesTable.Arn
+                      - !GetAtt TicketsTable.Arn
+                      - !Sub "${TicketsTable.Arn}/index/*"
+                      - !GetAtt PatientsTable.Arn
 
-# Thêm cấu hình cho esbuild
 custom:
     esbuild:
         bundle: true
@@ -43,13 +44,8 @@ custom:
         target: "node20"
         define: { "require.resolve": "undefined" }
         platform: "node"
-        # Quan trọng: Báo esbuild xuất ra code ESM
-        format: "esm"
+        format: "cjs"
         concurrency: 10
-        banner:
-            js: |
-                import { createRequire } from 'module';
-                const require = createRequire(import.meta.url);
 
     dynamodb:
         stages:
@@ -57,43 +53,45 @@ custom:
         start:
             port: 8000
             inMemory: true
-            migrate: true # Tự động tạo bảng
+            migrate: true
+            seed: true
+        seed:
+            dev:
+                sources:
+                    - table: ${self:provider.environment.QUEUES_TABLE}
+                      sources: [./seed-data/queues.json]
 
 functions:
-    requestOtp:
-        handler: handlers/handler.requestOtp
+    # 1. Check-in (Lấy số)
+    checkIn:
+        handler: handlers/api.checkInHandler
         events:
             - http:
-                  path: queue/checkin/request-otp
+                  path: queue/checkin
                   method: post
                   cors: true
 
-    verifyAndIssue:
-        handler: handlers/handler.verifyAndIssue
-        events:
-            - http:
-                  path: queue/checkin/verify
-                  method: post
-                  cors: true
-
+    # 2. Kiểm tra STT (Get Status)
     getStatus:
-        handler: handlers/handler.getStatus
+        handler: handlers/api.getStatusHandler
         events:
             - http:
-                  path: queue/ticket/status
+                  path: queue/status
                   method: get
                   cors: true
 
-    reissue:
-        handler: handlers/handler.reissue
+    # 3. Lấy lại số (Reissue Ticket)
+    reissueTicket:
+        handler: handlers/api.reissueHandler
         events:
             - http:
-                  path: queue/ticket/reissue
+                  path: queue/reissue
                   method: post
                   cors: true
 
+    # 4. Admin tăng STT (Advance Queue)
     advanceQueue:
-        handler: handlers/handler.advanceQueue
+        handler: handlers/api.advanceQueueHandler
         events:
             - http:
                   path: queue/admin/advance
@@ -113,9 +111,15 @@ resources:
                     - AttributeName: QueueId
                       KeyType: HASH
                 BillingMode: PAY_PER_REQUEST
+                Tags:
+                    - Key: Environment
+                      Value: ${self:provider.stage}
+                    - Key: Service
+                      Value: ${self:service}
 
         TicketsTable:
             Type: AWS::DynamoDB::Table
+            DeletionPolicy: Retain
             Properties:
                 TableName: ${self:provider.environment.TICKETS_TABLE}
                 AttributeDefinitions:
@@ -123,37 +127,45 @@ resources:
                       AttributeType: S
                     - AttributeName: TicketNumber
                       AttributeType: N
+                    - AttributeName: UserId
+                      AttributeType: S
+                    - AttributeName: VisitDate
+                      AttributeType: S
                 KeySchema:
                     - AttributeName: QueueId
                       KeyType: HASH
                     - AttributeName: TicketNumber
                       KeyType: RANGE
                 BillingMode: PAY_PER_REQUEST
+                GlobalSecondaryIndexes:
+                    - IndexName: UserIdIndex
+                      KeySchema:
+                          - AttributeName: UserId
+                            KeyType: HASH
+                          - AttributeName: VisitDate
+                            KeyType: RANGE
+                      Projection:
+                          ProjectionType: ALL
+                Tags:
+                    - Key: Environment
+                      Value: ${self:provider.stage}
+                    - Key: Service
+                      Value: ${self:service}
 
         PatientsTable:
             Type: AWS::DynamoDB::Table
+            DeletionPolicy: Retain
             Properties:
                 TableName: ${self:provider.environment.PATIENTS_TABLE}
                 AttributeDefinitions:
-                    - AttributeName: PhoneNumber
+                    - AttributeName: UserId
                       AttributeType: S
                 KeySchema:
-                    - AttributeName: PhoneNumber
+                    - AttributeName: UserId
                       KeyType: HASH
                 BillingMode: PAY_PER_REQUEST
-
-        OtpRequestsTable:
-            Type: AWS::DynamoDB::Table
-            Properties:
-                TableName: ${self:provider.environment.OTP_TABLE}
-                AttributeDefinitions:
-                    - AttributeName: PhoneNumber
-                      AttributeType: S
-                    - AttributeName: CreatedAt
-                      AttributeType: S
-                KeySchema:
-                    - AttributeName: PhoneNumber
-                      KeyType: HASH
-                    - AttributeName: CreatedAt
-                      KeyType: RANGE
-                BillingMode: PAY_PER_REQUEST
+                Tags:
+                    - Key: Environment
+                      Value: ${self:provider.stage}
+                    - Key: Service
+                      Value: ${self:service}
