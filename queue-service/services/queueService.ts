@@ -677,25 +677,33 @@ async function buildTicketResponse(
 
     if (logicalStatus === "WAITING") {
         // Query tất cả tickets từ (currentNumber+1) đến (ticketNumber-1)
-        const betweenTickets = await ddb.send(
-            new QueryCommand({
-                TableName: TICKETS_TABLE,
-                KeyConditionExpression:
-                    "QueueId = :qid AND TicketNumber BETWEEN :start AND :end",
-                ExpressionAttributeValues: {
-                    ":qid": queueId,
-                    ":start": currentNumber + 1,
-                    ":end": ticketNumber - 1,
-                },
-            })
-        );
+        const start = currentNumber + 1;
+        const end = ticketNumber - 1;
 
-        // Chỉ đếm các vé WAITING (loại bỏ CANCELLED, MISSED, DONE)
-        if (betweenTickets.Items) {
-            waitingBefore = betweenTickets.Items.filter(
-                (t) => t.Status === "WAITING"
-            ).length;
+        let betweenTicketsItems: any[] = [];
+
+        if (start <= end) {
+            const betweenTickets = await ddb.send(
+                new QueryCommand({
+                    TableName: TICKETS_TABLE,
+                    KeyConditionExpression:
+                        "QueueId = :qid AND TicketNumber BETWEEN :start AND :end",
+                    ExpressionAttributeValues: {
+                        ":qid": queueId,
+                        ":start": start,
+                        ":end": end,
+                    },
+                })
+            );
+
+            betweenTicketsItems = betweenTickets.Items ?? [];
         }
+
+        // Chỉ đếm WAITING
+        waitingBefore = betweenTicketsItems.filter(
+            (t) => t.Status === "WAITING"
+        ).length;
+        estimatedWaitMinutes = (waitingBefore + 1) * avgServiceTime;
 
         // ESTIMATE TIME = (số người đang chờ + 1 người hiện tại) × avg time
         estimatedWaitMinutes = (waitingBefore + 1) * avgServiceTime;
