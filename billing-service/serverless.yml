@@ -34,13 +34,13 @@ package:
     - node_modules/**
 
 functions:
-  # Lấy lần khám gần nhất của user đang đăng nhập
   getLatestBill:
     handler: src/handlers/getLatestBill.handler
     events:
-      - httpApi:
+      - http:
           path: /billing/latest
           method: get
+          cors: true
 
   # Lấy 1 hóa đơn cụ thể theo userId + visitId
   getBillByVisit:

@@ -62,10 +62,14 @@ const withAuth = (handler) => {
             const token = authHeader.split(" ")[1];
             const decoded = await verifyToken(token);
 
-            const userId = decoded.sub;
-            if (!userId) {
+            const tokenUserId = decoded.sub;
+            if (!tokenUserId) {
                 return formatResponse(401, { message: "Invalid token payload" });
             }
+
+            // 🆕 Kiểm tra xem có userId trong body không (cho test)
+            const body = event.body ? JSON.parse(event.body) : {};
+            const userId = body.userId || tokenUserId; // Ưu tiên body, fallback về token
 
             // Call the actual handler and pass userId
             return await handler(event, userId);

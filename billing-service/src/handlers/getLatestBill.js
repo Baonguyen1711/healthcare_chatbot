@@ -51,18 +51,25 @@ const MOCK_BILLS = [
 ];
 
 // Handler chính - nhận userId từ JWT token qua withAuth wrapper
-const getLatestBillHandler = async (event, userId) => {
+// Handler chính - nhận userId từ JWT token qua withAuth wrapper
+const getLatestBillHandler = async (event, tokenUserId) => {
   console.log("Event:", JSON.stringify(event));
-  console.log("UserId from JWT:", userId);
+  console.log("UserId from JWT:", tokenUserId);
 
   try {
+    // 🆕 Kiểm tra xem có userId trong body không (cho test)
+    const body = event.body ? JSON.parse(event.body) : {};
+    const userId = body.userId || tokenUserId; // Ưu tiên body, fallback về token
+
+    console.log("Final userId used:", userId);
+
     // Lọc tất cả hoá đơn của user
     const billsOfUser = MOCK_BILLS.filter((b) => b.userId === userId);
 
     if (!billsOfUser.length) {
       return formatResponse(404, {
-        message:
-          "Không tìm thấy dữ liệu viện phí cho user này (demo, mock data).",
+        message: "Không tìm thấy dữ liệu viện phí cho user này (demo, mock data).",
+        requestedUserId: userId, // 🆕 Thêm để debug
       });
     }
 
