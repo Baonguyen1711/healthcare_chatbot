@@ -34,11 +34,21 @@ package:
     - node_modules/**
 
 functions:
+  # Endpoint chính - yêu cầu JWT token, lấy userId từ token
   getLatestBill:
     handler: src/handlers/getLatestBill.handler
     events:
       - http:
           path: /billing/latest
+          method: get
+          cors: true
+
+  # Endpoint test - không cần token, luôn dùng userId = U001
+  getLatestBillTest:
+    handler: src/handlers/getLatestBillTest.handler
+    events:
+      - http:
+          path: /billing/test/latest
           method: get
           cors: true
 
