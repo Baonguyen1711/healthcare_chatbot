@@ -5,7 +5,9 @@
         "rootDir": ".",
         "allowJs": true,
         "checkJs": false,
-        "noEmit": true
+        "noEmit": false,
+        "esModuleInterop": true,
+        "moduleResolution": "node"
     },
     "include": [
         "src/**/*.js",

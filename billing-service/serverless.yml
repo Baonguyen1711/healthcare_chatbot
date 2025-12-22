@@ -6,6 +6,7 @@ provider:
   runtime: nodejs20.x
   region: us-east-1
   stage: dev
+  timeout: 30
 
   # Biến môi trường cho Lambda
   environment:
@@ -28,15 +29,17 @@ provider:
     cors: true
 
 package:
-  include:
-    - ../shared/**
+  individually: false
   exclude:
-    - node_modules/**
+    - "**/*"
+  include:
+    - ".build/**"
+    - "node_modules/**"
 
 functions:
   # Endpoint chính - yêu cầu JWT token, lấy userId từ token
   getLatestBill:
-    handler: src/handlers/getLatestBill.handler
+    handler: .build/src/handlers/getLatestBill.handler
     events:
       - http:
           path: /billing/latest
@@ -45,7 +48,7 @@ functions:
 
   # Endpoint test - không cần token, luôn dùng userId = U001
   getLatestBillTest:
-    handler: src/handlers/getLatestBillTest.handler
+    handler: .build/src/handlers/getLatestBillTest.handler
     events:
       - http:
           path: /billing/test/latest
@@ -54,7 +57,7 @@ functions:
 
   # Lấy 1 hóa đơn cụ thể theo userId + visitId
   getBillByVisit:
-    handler: src/handlers/getBillByVisit.handler
+    handler: .build/src/handlers/getBillByVisit.handler
     events:
       - httpApi:
           path: /billing/{userId}/{visitId}
