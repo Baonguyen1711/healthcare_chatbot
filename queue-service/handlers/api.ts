@@ -8,9 +8,54 @@ import {
     checkIn,
 } from "../services/queueService";
 import { formatResponse } from "../../shared/response";
+import { isAppError, fail } from "../services/errors"; // 👈 dùng bộ AppError mình đưa
 
 const HARDCODED_USER_ID = "user-123456";
 const HARDCODED_ADMIN_ID = "admin-001";
+
+function badRequest(code: string, message: string, details?: any) {
+    return formatResponse(400, {
+        success: false,
+        error: { code, message, details },
+    });
+}
+
+function toErrorResponse(err: any): APIGatewayProxyResult {
+    console.error("API error:", err);
+
+    // AppError từ service -> trả đúng status + message
+    if (isAppError(err)) {
+        return formatResponse(err.statusCode, {
+            success: false,
+            error: {
+                code: err.code,
+                message: err.message,
+                details: err.details, // optional
+            },
+        });
+    }
+
+    // Parse JSON lỗi khi body không hợp lệ
+    if (err?.name === "SyntaxError") {
+        return badRequest(
+            "INVALID_JSON",
+            "Dữ liệu gửi lên không hợp lệ (JSON)."
+        );
+    }
+
+    // Fallback lỗi hệ thống
+    const internal = fail("INTERNAL_ERROR", 500, {
+        raw: err?.message ?? String(err),
+    });
+    return formatResponse(internal.statusCode, {
+        success: false,
+        error: {
+            code: internal.code,
+            message: internal.message,
+            details: internal.details,
+        },
+    });
+}
 
 // ===== 1. CHECK-IN (Lấy số) =====
 export const checkInHandler = async (
@@ -19,24 +64,29 @@ export const checkInHandler = async (
     try {
         const body = JSON.parse(event.body || "{}");
 
-        // Validate required fields
         if (!body.fullName) {
-            return formatResponse(400, {
-                success: false,
-                error: "FULL_NAME_REQUIRED",
-            });
+            return badRequest(
+                "FULL_NAME_REQUIRED",
+                "Bạn vui lòng cung cấp họ tên."
+            );
         }
         if (!body.phoneNumber) {
-            return formatResponse(400, {
-                success: false,
-                error: "PHONE_NUMBER_REQUIRED",
-            });
+            return badRequest(
+                "PHONE_NUMBER_REQUIRED",
+                "Bạn vui lòng cung cấp số điện thoại."
+            );
+        }
+        if (!body.nationalId) {
+            return badRequest(
+                "NATIONAL_ID_REQUIRED",
+                "Bạn vui lòng cung cấp CCCD/CMND."
+            );
         }
         if (!body.queueType) {
-            return formatResponse(400, {
-                success: false,
-                error: "QUEUE_TYPE_REQUIRED",
-            });
+            return badRequest(
+                "QUEUE_TYPE_REQUIRED",
+                "Bạn vui lòng chọn loại khám (BHYT hoặc Dịch vụ)."
+            );
         }
 
         const userId = body.userId || HARDCODED_USER_ID;
@@ -51,11 +101,7 @@ export const checkInHandler = async (
 
         return formatResponse(200, { success: true, data: result });
     } catch (err: any) {
-        console.error("checkIn error:", err);
-        return formatResponse(400, {
-            success: false,
-            error: err.message || "CHECK_IN_FAILED",
-        });
+        return toErrorResponse(err);
     }
 };
 
@@ -67,10 +113,10 @@ export const getStatusHandler = async (
         const query = event.queryStringParameters || {};
 
         if (!query.queueType) {
-            return formatResponse(400, {
-                success: false,
-                error: "QUEUE_TYPE_REQUIRED",
-            });
+            return badRequest(
+                "QUEUE_TYPE_REQUIRED",
+                "Bạn vui lòng chọn loại khám (BHYT hoặc Dịch vụ)."
+            );
         }
 
         const userId = query.userId || HARDCODED_USER_ID;
@@ -82,11 +128,7 @@ export const getStatusHandler = async (
 
         return formatResponse(200, { success: true, data: result });
     } catch (err: any) {
-        console.error("getStatus error:", err);
-        return formatResponse(400, {
-            success: false,
-            error: err.message || "GET_STATUS_FAILED",
-        });
+        return toErrorResponse(err);
     }
 };
 
@@ -98,10 +140,10 @@ export const reissueHandler = async (
         const body = JSON.parse(event.body || "{}");
 
         if (!body.queueType) {
-            return formatResponse(400, {
-                success: false,
-                error: "QUEUE_TYPE_REQUIRED",
-            });
+            return badRequest(
+                "QUEUE_TYPE_REQUIRED",
+                "Bạn vui lòng chọn loại khám (BHYT hoặc Dịch vụ)."
+            );
         }
 
         const userId = body.userId || HARDCODED_USER_ID;
@@ -113,11 +155,7 @@ export const reissueHandler = async (
 
         return formatResponse(200, { success: true, data: result });
     } catch (err: any) {
-        console.error("reissue error:", err);
-        return formatResponse(400, {
-            success: false,
-            error: err.message || "REISSUE_FAILED",
-        });
+        return toErrorResponse(err);
     }
 };
 
@@ -129,10 +167,10 @@ export const advanceQueueHandler = async (
         const body = JSON.parse(event.body || "{}");
 
         if (!body.queueType) {
-            return formatResponse(400, {
-                success: false,
-                error: "QUEUE_TYPE_REQUIRED",
-            });
+            return badRequest(
+                "QUEUE_TYPE_REQUIRED",
+                "Bạn vui lòng chọn loại hàng đợi (BHYT hoặc Dịch vụ)."
+            );
         }
 
         const adminUserId = body.adminUserId || HARDCODED_ADMIN_ID;
@@ -145,10 +183,6 @@ export const advanceQueueHandler = async (
 
         return formatResponse(200, { success: true, data: result });
     } catch (err: any) {
-        console.error("advanceQueue error:", err);
-        return formatResponse(400, {
-            success: false,
-            error: err.message || "ADVANCE_QUEUE_FAILED",
-        });
+        return toErrorResponse(err);
     }
 };

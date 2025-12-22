@@ -18,6 +18,7 @@ import {
     CheckInInput,
     TicketStatus,
 } from "../models/queueModels";
+import { fail } from "./errors";
 
 const IS_OFFLINE = process.env.IS_OFFLINE === "true";
 
@@ -91,7 +92,7 @@ export async function checkIn(
 
     // Validation: Queue phải đang mở
     if (visitDate === today() && !isQueueOpen()) {
-        throw new Error("QUEUE_CLOSED_FOR_TODAY");
+        throw fail("QUEUE_CLOSED_FOR_TODAY", 400, { visitDate, queueType });
     }
 
     // Kiểm tra user đã có ticket ACTIVE chưa (WAITING hoặc CALLING)
@@ -246,7 +247,7 @@ export async function getStatus(
     console.log(`[getStatus] Found ${ticketList.Items?.length || 0} tickets`);
 
     if (!ticketList.Items || ticketList.Items.length === 0) {
-        throw new Error("NO_TICKET_FOUND");
+        throw fail("NO_TICKET_FOUND", 404, { visitDate, queueType });
     }
 
     // Tìm ticket ACTIVE của queueType này
@@ -257,7 +258,14 @@ export async function getStatus(
     );
 
     if (!activeTicket) {
-        throw new Error("NO_ACTIVE_TICKET_FOUND");
+        throw fail("NO_ACTIVE_TICKET_FOUND", 404, {
+            visitDate,
+            queueType,
+            existingStatuses: ticketList.Items.map((t) => ({
+                code: t.TicketCode,
+                status: t.Status,
+            })),
+        });
     }
 
     return await buildTicketResponse(activeTicket, queueId);
@@ -278,7 +286,7 @@ export async function reissueTicket(
 
     // Validation: Queue phải đang mở
     if (visitDate === today() && !isQueueOpen()) {
-        throw new Error("QUEUE_CLOSED_FOR_TODAY");
+        throw fail("QUEUE_CLOSED_FOR_TODAY", 400, { visitDate, queueType });
     }
 
     // Tìm ticket của user
@@ -296,7 +304,7 @@ export async function reissueTicket(
     );
 
     if (!ticketList.Items || ticketList.Items.length === 0) {
-        throw new Error("NO_TICKET_FOUND");
+        throw fail("NO_TICKET_FOUND", 404, { visitDate, queueType });
     }
 
     // Tìm ticket WAITING (chỉ cho phép reissue khi đang WAITING)
@@ -306,13 +314,23 @@ export async function reissueTicket(
     );
 
     if (!oldTicket) {
-        throw new Error("NO_WAITING_TICKET_TO_REISSUE");
+        throw fail("NO_WAITING_TICKET_TO_REISSUE", 400, {
+            visitDate,
+            queueType,
+            found: ticketList.Items.map((t) => ({
+                code: t.TicketCode,
+                status: t.Status,
+            })),
+        });
     }
 
     // Validation: Kiểm tra số lần reissue
     const reissueCount = oldTicket.ReissueCount || 0;
     if (reissueCount >= MAX_REISSUE_COUNT) {
-        throw new Error(`MAX_REISSUE_LIMIT_REACHED (${MAX_REISSUE_COUNT})`);
+        throw fail("MAX_REISSUE_LIMIT_REACHED", 400, {
+            max: MAX_REISSUE_COUNT,
+            reissueCount,
+        });
     }
 
     const oldTicketNumber: number = oldTicket.TicketNumber;
@@ -331,14 +349,18 @@ export async function reissueTicket(
     );
 
     if (!queueRes.Item) {
-        throw new Error("QUEUE_NOT_FOUND");
+        throw fail("QUEUE_NOT_FOUND", 404, { queueId, queueType, visitDate });
     }
 
     const currentNumber = queueRes.Item.CurrentNumber || 0;
 
     // Validation: Không cho reissue nếu đã gần đến lượt (trong 3 số)
     if (oldTicketNumber <= currentNumber + 3) {
-        throw new Error("CANNOT_REISSUE_NEAR_YOUR_TURN");
+        throw fail("CANNOT_REISSUE_NEAR_YOUR_TURN", 400, {
+            oldTicketNumber,
+            currentNumber,
+            threshold: 3,
+        });
     }
 
     // Huỷ số cũ - đánh dấu CANCELLED
@@ -429,8 +451,8 @@ export async function adminAdvanceQueue(
     const visitDate = input.visitDate || today();
     const step = input.step ?? 1;
 
-    if (step <= 0) throw new Error("INVALID_STEP");
-    if (step > 10) throw new Error("STEP_TOO_LARGE"); // Giới hạn step
+    if (step <= 0) throw fail("INVALID_STEP", 400, { step });
+    if (step > 10) throw fail("STEP_TOO_LARGE", 400, { step, max: 10 });
 
     const queueId = buildQueueId(visitDate, queueType);
     const now = new Date().toISOString();
@@ -446,7 +468,7 @@ export async function adminAdvanceQueue(
     );
 
     if (!queueRes.Item) {
-        throw new Error("QUEUE_NOT_FOUND");
+        throw fail("QUEUE_NOT_FOUND", 404, { queueId, queueType, visitDate });
     }
 
     const currentNumber: number = queueRes.Item.CurrentNumber || 0;
@@ -454,14 +476,12 @@ export async function adminAdvanceQueue(
     const previousNumber = currentNumber;
 
     // Validation: không có số nào để advance
-    if (lastIssued === 0) {
-        throw new Error("NO_TICKETS_ISSUED_YET");
-    }
-
-    // Validation: đã hết số
-    if (currentNumber >= lastIssued) {
-        throw new Error("QUEUE_ALREADY_FINISHED");
-    }
+    if (lastIssued === 0) throw fail("NO_TICKETS_ISSUED_YET", 400, { queueId });
+    if (currentNumber >= lastIssued)
+        throw fail("QUEUE_ALREADY_FINISHED", 400, {
+            currentNumber,
+            lastIssued,
+        });
 
     // Tính số mới
     let newCurrentNumber = currentNumber + step;
