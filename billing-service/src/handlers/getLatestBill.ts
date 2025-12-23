@@ -1,19 +1,21 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.handler = void 0;
-const client_dynamodb_1 = require("@aws-sdk/client-dynamodb");
-const lib_dynamodb_1 = require("@aws-sdk/lib-dynamodb");
-const authRequire_1 = require("../utils/authRequire");
-const response_1 = require("../utils/response");
-const client = new client_dynamodb_1.DynamoDBClient({});
-const docClient = lib_dynamodb_1.DynamoDBDocumentClient.from(client);
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import { withAuth } from "../utils/authRequire";
+import { formatResponse } from "../utils/response";
+
+const client = new DynamoDBClient({});
+const docClient = DynamoDBDocumentClient.from(client);
+
 const TABLE = process.env.BILLS_TABLE;
+
 // Handler chính logic - nhận userId đã verify từ withAuth
-const getLatestBill = async (event, userId) => {
+const getLatestBill = async (event: APIGatewayProxyEvent, userId: string): Promise<APIGatewayProxyResult> => {
     console.log("Event:", JSON.stringify(event));
     console.log("Authorized UserId:", userId);
+
     try {
-        const command = new lib_dynamodb_1.QueryCommand({
+        const command = new QueryCommand({
             TableName: TABLE,
             KeyConditionExpression: "userId = :userId",
             ExpressionAttributeValues: {
@@ -22,21 +24,25 @@ const getLatestBill = async (event, userId) => {
             ScanIndexForward: false, // Sort descending by visitId (lấy mới nhất)
             Limit: 1,
         });
+
         console.log("Querying DynamoDB...");
         const result = await docClient.send(command).catch(dbErr => {
             console.error("DynamoDB Query Error:", dbErr);
             throw new Error(`Database error: ${dbErr.message}`);
         });
+
         if (!result.Items || result.Items.length === 0) {
             console.log("No bills found for user:", userId);
-            return (0, response_1.formatResponse)(404, {
+            return formatResponse(404, {
                 message: "Không tìm thấy dữ liệu viện phí cho user này.",
                 requestedUserId: userId,
             });
         }
+
         const bill = result.Items[0];
         console.log("Found bill:", bill.visitId);
-        return (0, response_1.formatResponse)(200, {
+
+        return formatResponse(200, {
             userId: bill.userId,
             visitId: bill.visitId,
             visitDate: bill.visitDate,
@@ -57,15 +63,16 @@ const getLatestBill = async (event, userId) => {
             paymentDate: bill.paymentDate,
             note: bill.note,
         });
-    }
-    catch (err) {
+
+    } catch (err: any) {
         console.error("Error getLatestBill:", err);
-        return (0, response_1.formatResponse)(500, {
+        return formatResponse(500, {
             message: "Internal server error",
             error: err.message,
             stack: err.stack
         });
     }
 };
+
 // Export handler đã được wrap bởi withAuth
-exports.handler = (0, authRequire_1.withAuth)(getLatestBill);
+export const handler = withAuth(getLatestBill);
