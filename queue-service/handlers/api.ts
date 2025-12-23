@@ -8,7 +8,8 @@ import {
     checkIn,
 } from "../services/queueService";
 import { formatResponse } from "../../shared/response";
-import { isAppError, fail } from "../services/errors"; // 👈 dùng bộ AppError mình đưa
+import { isAppError, fail } from "../services/errors";
+import { withAuth } from "../../shared/authRequire";
 
 const HARDCODED_USER_ID = "user-123456";
 const HARDCODED_ADMIN_ID = "admin-001";
@@ -56,10 +57,9 @@ function toErrorResponse(err: any): APIGatewayProxyResult {
         },
     });
 }
-
-// ===== 1. CHECK-IN (Lấy số) =====
-export const checkInHandler = async (
-    event: APIGatewayProxyEvent
+const checkInCore = async (
+    event: APIGatewayProxyEvent,
+    userId: string
 ): Promise<APIGatewayProxyResult> => {
     try {
         const body = JSON.parse(event.body || "{}");
@@ -89,8 +89,7 @@ export const checkInHandler = async (
             );
         }
 
-        const userId = body.userId || HARDCODED_USER_ID;
-
+        // userId lấy từ JWT (withAuth), không lấy từ body/query nữa
         const result = await checkIn(userId, {
             fullName: body.fullName,
             phoneNumber: body.phoneNumber,
@@ -105,9 +104,12 @@ export const checkInHandler = async (
     }
 };
 
-// ===== 2. GET STATUS (Kiểm tra STT) =====
-export const getStatusHandler = async (
-    event: APIGatewayProxyEvent
+export const checkInHandler = withAuth(checkInCore);
+
+// ===== 2) GET STATUS (Kiểm tra STT) =====
+const getStatusCore = async (
+    event: APIGatewayProxyEvent,
+    userId: string
 ): Promise<APIGatewayProxyResult> => {
     try {
         const query = event.queryStringParameters || {};
@@ -118,8 +120,6 @@ export const getStatusHandler = async (
                 "Bạn vui lòng chọn loại khám (BHYT hoặc Dịch vụ)."
             );
         }
-
-        const userId = query.userId || HARDCODED_USER_ID;
 
         const result = await getStatus(userId, {
             queueType: query.queueType as any,
@@ -132,9 +132,12 @@ export const getStatusHandler = async (
     }
 };
 
-// ===== 3. REISSUE TICKET (Lấy lại số) =====
-export const reissueHandler = async (
-    event: APIGatewayProxyEvent
+export const getStatusHandler = withAuth(getStatusCore);
+
+// ===== 3) REISSUE TICKET (Lấy lại số) =====
+const reissueCore = async (
+    event: APIGatewayProxyEvent,
+    userId: string
 ): Promise<APIGatewayProxyResult> => {
     try {
         const body = JSON.parse(event.body || "{}");
@@ -146,8 +149,6 @@ export const reissueHandler = async (
             );
         }
 
-        const userId = body.userId || HARDCODED_USER_ID;
-
         const result = await reissueTicket(userId, {
             queueType: body.queueType,
             visitDate: body.visitDate,
@@ -158,6 +159,8 @@ export const reissueHandler = async (
         return toErrorResponse(err);
     }
 };
+
+export const reissueHandler = withAuth(reissueCore);
 
 // ===== 4. ADMIN ADVANCE QUEUE (Tăng STT) =====
 export const advanceQueueHandler = async (
