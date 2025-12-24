@@ -45,6 +45,15 @@ export const signUp = async (
     const awsUserId = await signUpService(registerUser);
 
     console.log('Cognito UserSub:', awsUserId);
+    console.log('test ci/cd:');
+    console.log('test ci/cd lần 2:');
+    console.log('test ci/cd lần 3:');
+    console.log('test ci/cd lần 4:');
+    console.log('test ci/cd lần 5:');
+    console.log('test ci/cd lần 6:');
+    console.log('test ci/cd lần 7:');
+    console.log('test ci/cd lần 8:');
+    console.log('test ci/cd lần 9:');
     if (!awsUserId) {
       throw new Error('Failed to get Cognito UserSub');
     }
