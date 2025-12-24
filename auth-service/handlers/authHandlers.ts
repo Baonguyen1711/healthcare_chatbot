@@ -53,6 +53,7 @@ export const signUp = async (
     console.log('test ci/cd lần 6:');
     console.log('test ci/cd lần 7:');
     console.log('test ci/cd lần 8:');
+    console.log('test ci/cd lần 9:');
     if (!awsUserId) {
       throw new Error('Failed to get Cognito UserSub');
     }
