@@ -7,7 +7,6 @@ service: auth-service
 
 plugins:
   - serverless-dotenv-plugin
-  - serverless-offline
 
 custom:
   dotenv:
