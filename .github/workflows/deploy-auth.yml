@@ -21,7 +21,7 @@ jobs:
         node-version: 20
 
     - name: Install deps
-      working-directory: services/auth-service
+      working-directory: auth-service
       run: npm install
 
     - name: Install Serverless Framework
