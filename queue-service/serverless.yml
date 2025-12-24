@@ -4,7 +4,6 @@ useDotenv: true
 
 plugins:
     - serverless-esbuild
-    - serverless-dynamodb
     - serverless-offline
 
 provider:
@@ -34,32 +33,6 @@ provider:
                       - !GetAtt TicketsTable.Arn
                       - !Sub "${TicketsTable.Arn}/index/*"
                       - !GetAtt PatientsTable.Arn
-
-custom:
-    esbuild:
-        bundle: true
-        minify: false
-        sourcemap: true
-        exclude: ["aws-sdk"]
-        target: "node20"
-        define: { "require.resolve": "undefined" }
-        platform: "node"
-        format: "cjs"
-        concurrency: 10
-
-    dynamodb:
-        stages:
-            - dev
-        start:
-            port: 8000
-            inMemory: true
-            migrate: true
-            seed: true
-        seed:
-            dev:
-                sources:
-                    - table: ${self:provider.environment.QUEUES_TABLE}
-                      sources: [./seed-data/queues.json]
 
 functions:
     # 1. Check-in (Lấy số)

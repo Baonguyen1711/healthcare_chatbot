@@ -12,7 +12,17 @@ export type ErrorCode =
     | "STEP_TOO_LARGE"
     | "NO_TICKETS_ISSUED_YET"
     | "QUEUE_ALREADY_FINISHED"
-    | "INTERNAL_ERROR";
+    | "INTERNAL_ERROR"
+    | "DUPLICATE_FEEDBACK"
+    | "TOO_MANY_IMAGES"
+    | "INVALID_IMAGE_FORMAT"
+    | "COMMENT_TOO_LONG"
+    | "COMMENT_TOO_SHORT"
+    | "INVALID_RATING"
+    | "UNAUTHORIZED_ACCESS"
+    | "FEEDBACK_NOT_FOUND"
+    | "INVALID_CATEGORY"
+    | "IMAGE_UPLOAD_FAILED";
 
 export class AppError extends Error {
     public readonly code: ErrorCode;
@@ -53,6 +63,20 @@ export const ErrorMessages: Record<ErrorCode, string> = {
     NO_TICKETS_ISSUED_YET: "Hiện chưa phát số nào cho hàng đợi này.",
     QUEUE_ALREADY_FINISHED: "Hàng đợi hôm nay đã chạy đến số cuối cùng.",
     INTERNAL_ERROR: "Có lỗi hệ thống. Bạn vui lòng thử lại sau.",
+    DUPLICATE_FEEDBACK: "Bạn đã gửi phản hồi cho lần khám này rồi.",
+    TOO_MANY_IMAGES:
+        "Bạn đã gửi quá nhiều hình ảnh kèm theo phản hồi. Vui lòng giảm bớt.",
+    INVALID_IMAGE_FORMAT:
+        "Định dạng hình ảnh không hợp lệ. Vui lòng chỉ gửi hình ảnh dưới dạng Base64 hoặc URL.",
+    COMMENT_TOO_LONG:
+        "Nhận xét của bạn quá dài. Vui lòng giới hạn trong 1000 ký tự.",
+    COMMENT_TOO_SHORT:
+        "Nhận xét của bạn quá ngắn. Vui lòng nhập thêm chi tiết.",
+    INVALID_RATING: "Đánh giá không hợp lệ. Vui lòng chọn từ 1 đến 5.",
+    UNAUTHORIZED_ACCESS: "Bạn không có quyền truy cập phản hồi này.",
+    FEEDBACK_NOT_FOUND: "Không tìm thấy phản hồi tương ứng.",
+    INVALID_CATEGORY: "Danh mục phản hồi không hợp lệ.",
+    IMAGE_UPLOAD_FAILED: "Tải lên hình ảnh kèm theo phản hồi thất bại.",
 };
 
 // Helper tạo AppError nhanh
