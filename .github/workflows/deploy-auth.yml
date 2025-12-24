@@ -35,7 +35,7 @@ jobs:
         aws-region: us-east-1
 
     - name: Deploy auth-service
-      working-directory: services/auth-service
+      working-directory: auth-service
       env:
         COGNITO_USER_POOL_ID: ${{ secrets.COGNITO_USER_POOL_ID }}
         COGNITO_CLIENT_ID: ${{ secrets.COGNITO_CLIENT_ID }}
