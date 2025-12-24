@@ -1,0 +1,129 @@
+service: feedback-service
+frameworkVersion: "3"
+useDotenv: true
+
+plugins:
+    - serverless-esbuild
+    - serverless-offline
+
+provider:
+    name: aws
+    runtime: nodejs20.x
+    region: ${opt:region, env:AWS_REGION, "us-east-1"}
+    stage: ${opt:stage, "dev"}
+    timeout: 30
+    memorySize: 256
+
+    environment:
+        AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+        STAGE: ${self:provider.stage}
+        IS_OFFLINE: ${env:IS_OFFLINE, "false"}
+        FEEDBACKS_TABLE: ${self:service}-${self:provider.stage}-Feedbacks
+
+    iam:
+        role:
+            statements:
+                - Effect: Allow
+                  Action:
+                      - dynamodb:GetItem
+                      - dynamodb:PutItem
+                      - dynamodb:UpdateItem
+                      - dynamodb:DeleteItem
+                      - dynamodb:Query
+                      - dynamodb:Scan
+                  Resource:
+                      - !GetAtt FeedbacksTable.Arn
+                      - !Sub "${FeedbacksTable.Arn}/index/*"
+
+package:
+    individually: true
+    patterns:
+        - "!node_modules/**"
+        - "!**/*.test.*"
+        - "!**/*.spec.*"
+        - "!coverage/**"
+        - "!.git/**"
+        - "!.vscode/**"
+        - "!README*"
+        - "!docs/**"
+
+functions:
+    submitFeedback:
+        handler: feedbackApi.submitFeedbackHandler
+        events:
+            - http:
+                  path: feedback/submit
+                  method: post
+                  cors: true
+
+    getUserFeedbacks:
+        handler: feedbackApi.getUserFeedbacksHandler
+        events:
+            - http:
+                  path: feedback/user
+                  method: get
+                  cors: true
+
+    getFeedback:
+        handler: feedbackApi.getFeedbackHandler
+        events:
+            - http:
+                  path: feedback/{feedbackId}
+                  method: get
+                  cors: true
+
+    adminGetFeedbacks:
+        handler: feedbackApi.adminGetFeedbacksHandler
+        events:
+            - http:
+                  path: feedback/admin/all
+                  method: get
+                  cors: true
+
+    updateFeedbackStatus:
+        handler: feedbackApi.updateFeedbackStatusHandler
+        events:
+            - http:
+                  path: feedback/admin/update-status
+                  method: post
+                  cors: true
+
+resources:
+    Resources:
+        FeedbacksTable:
+            Type: AWS::DynamoDB::Table
+            Properties:
+                TableName: ${self:provider.environment.FEEDBACKS_TABLE}
+                BillingMode: PAY_PER_REQUEST
+                AttributeDefinitions:
+                    - AttributeName: UserId
+                      AttributeType: S
+                    - AttributeName: CreatedAt
+                      AttributeType: S
+                    - AttributeName: FeedbackId
+                      AttributeType: S
+                KeySchema:
+                    - AttributeName: UserId
+                      KeyType: HASH
+                    - AttributeName: CreatedAt
+                      KeyType: RANGE
+                GlobalSecondaryIndexes:
+                    - IndexName: UserIdCreatedAtIndex
+                      KeySchema:
+                          - AttributeName: UserId
+                            KeyType: HASH
+                          - AttributeName: CreatedAt
+                            KeyType: RANGE
+                      Projection:
+                          ProjectionType: ALL
+                    - IndexName: FeedbackIdIndex
+                      KeySchema:
+                          - AttributeName: FeedbackId
+                            KeyType: HASH
+                      Projection:
+                          ProjectionType: ALL
+                Tags:
+                    - Key: Environment
+                      Value: ${self:provider.stage}
+                    - Key: Service
+                      Value: ${self:service}
