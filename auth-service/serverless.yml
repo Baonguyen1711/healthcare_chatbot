@@ -7,6 +7,7 @@ service: auth-service
 
 plugins:
   - serverless-dotenv-plugin
+  - serverless-plugin-typescript
 
 custom:
   dotenv:
@@ -56,6 +57,9 @@ provider:
 
 package:
   include:
+    - handlers/**
+    - services/**
+    - models/**
     - ../shared/**   
   exclude:
     - node_modules/**

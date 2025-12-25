@@ -11,5 +11,8 @@
   "license": "ISC",
   "devDependencies": {
     "serverless-dotenv-plugin": "^6.0.0"
+  },
+  "dependencies": {
+    "serverless-plugin-typescript": "^2.1.5"
   }
 }
