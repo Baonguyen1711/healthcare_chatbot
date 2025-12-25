@@ -18,6 +18,9 @@ custom:
     minify: false      # không minify (dễ debug)
     sourcemap: true    # tạo sourcemap cho debug
     target: node20     # target Node 20 runtime
+    external:
+      - "@aws-sdk/client-dynamodb"
+      - "@aws-sdk/lib-dynamodb"
 
   
 provider:
