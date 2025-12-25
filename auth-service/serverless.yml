@@ -8,10 +8,17 @@ service: auth-service
 plugins:
   - serverless-dotenv-plugin
   - serverless-plugin-typescript
+  - serverless-esbuild
 
 custom:
   dotenv:
     path: .env
+  esbuild:
+    bundle: true       # bundle tất cả code và dependencies vào Lambda
+    minify: false      # không minify (dễ debug)
+    sourcemap: true    # tạo sourcemap cho debug
+    target: node20     # target Node 20 runtime
+
   
 provider:
   name: aws
